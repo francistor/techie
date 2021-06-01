@@ -19,7 +19,7 @@ fi
 # Delete swap file in /etc/fstab
 sed -i '/swap/d' /etc/fstab
 
-# Load br_netfiltr
+# Load br_netfilter
 if ! lsmod | grep -q br_netfilter
 then
 echo "br_netfilter not found. Configuring in /etc/modules-load.d/k8s.conf"
