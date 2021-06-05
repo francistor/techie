@@ -14,3 +14,16 @@ kubectl taint node $K8S_MASTER node-role.kubernetes.io/master:NoSchedule-
 
 # Enable iSCSI for OpenEBS
 sudo systemctl enable --now iscsid
+
+# Install OpenEBS
+kubectl apply -f https://openebs.github.io/charts/openebs-operator.yaml
+
+# Wait until storage class ready
+while [[ ! $(kubectl get sc openebs-jiva-default) ]]
+do
+ echo "\rWaiting for Jiva storage class to be available"
+ sleep 5
+done
+
+# Make default storage class
+kubectl patch storageclass openebs-jiva-default -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
