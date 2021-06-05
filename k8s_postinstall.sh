@@ -27,3 +27,31 @@ done
 
 # Make default storage class. openebs-hostpath may be used  instead of openebs-jiva-default if one-node cluster
 kubectl patch storageclass openebs-jiva-default -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+# Install metallb
+DEFAULT_IP=192.168.122.205
+METALLB_IP_RANGE=$DEFAULT_IP-$DEFAULT_IP
+
+# Install metallb
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.6/manifests/namespace.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.6/manifests/metallb.yaml
+# On first install only
+kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+
+# Configure metallb
+echo "apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - $METALLB_IP_RANGE" | kubectl apply -f -
+      
+# Install Ingress controller
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.46.0/deploy/static/provider/baremetal/deploy.yaml
+
