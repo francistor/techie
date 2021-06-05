@@ -18,6 +18,7 @@ fi
 
 # Delete swap file in /etc/fstab
 sed -i '/swap/d' /etc/fstab
+swapoff -a
 
 # Load required modules 
 
