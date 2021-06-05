@@ -21,7 +21,7 @@ kubectl apply -f https://openebs.github.io/charts/openebs-operator.yaml
 # Wait until storage class ready
 while [[ ! $(kubectl get sc openebs-jiva-default) ]]
 do
- echo "\rWaiting for Jiva storage class to be available"
+ echo "Waiting for Jiva storage class to be available"
  sleep 5
 done
 
