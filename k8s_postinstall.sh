@@ -25,5 +25,5 @@ do
  sleep 5
 done
 
-# Make default storage class
+# Make default storage class. openebs-hostpath may be used  instead of openebs-jiva-default if one-node cluster
 kubectl patch storageclass openebs-jiva-default -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
