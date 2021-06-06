@@ -7,6 +7,9 @@ then
 	exit;
 fi
 
+apt-get update
+apt-get upgrade
+
 # Add to /etc/hosts
 if ! grep -q "192.168.122.2" /etc/hosts
 then
