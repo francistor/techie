@@ -77,6 +77,7 @@ apt-get update
 
 # Use this to check available versions: apt-cache showpkg <package-name>
 # To install a specific version apt-get install -y kubelet=1.21.4-00
-apt-get install -y kubelet kubeadm kubectl
+# apt-get install -y kubelet kubeadm kubectl
+apt-get install -y kubelet=1.21.4-00 kubeadm=1.21.4-00 kubectl=1.21.4-00
 apt-mark hold kubelet kubeadm kubectl
 
