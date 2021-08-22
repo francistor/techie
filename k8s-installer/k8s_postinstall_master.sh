@@ -52,6 +52,5 @@ data:
       addresses:
       - $METALLB_IP_RANGE" | kubectl apply -f -
       
-# Install Ingress controller
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.49.0/deploy/static/provider/baremetal/deploy.yaml
-
+# Install Ingress controller. For kubernetes > 1.22 this is the compatible version
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.0.0-beta.1/deploy/static/provider/baremetal/deploy.yaml
