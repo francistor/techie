@@ -74,6 +74,9 @@ curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.
 echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
 apt-get update
+
+# Use this to check available versions: apt-cache showpkg <package-name>
+# To install a specific version apt-get install -y kubelet=1.21.4-00
 apt-get install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
 
