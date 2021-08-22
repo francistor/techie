@@ -1,5 +1,13 @@
 #!/bin/bash
 
+############################################################
+# This script installs Kubernetes software required in nodes
+# in the cluster. To be exectued as the first step
+############################################################
+
+# Specific version to install
+K8S_VERSION=1.21.4-00
+
 # Check I'm root
 if [[ "$(whoami)" != "root" ]]
 then
@@ -76,8 +84,7 @@ echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https:/
 apt-get update
 
 # Use this to check available versions: apt-cache showpkg <package-name>
-# To install a specific version apt-get install -y kubelet=1.21.4-00
-# apt-get install -y kubelet kubeadm kubectl
-apt-get install -y kubelet=1.21.4-00 kubeadm=1.21.4-00 kubectl=1.21.4-00
+# To install a specific version apt-get install -y kubelet=1.21.4-00. Use allow-downgrades because some software may be already installed
+apt-get install -y kubelet=$K8S_VERSION kubeadm=$K8S_VERSION kubectl=$K8S_VERSION --allow-downgrades
 apt-mark hold kubelet kubeadm kubectl
 
