@@ -22,7 +22,7 @@ kubectl apply -f https://openebs.github.io/charts/openebs-operator.yaml
 while [[ ! $(kubectl get sc openebs-jiva-default) ]]
 do
  echo "Waiting for Jiva storage class to be available"
- sleep 5
+ sleep 15
 done
 
 # Make default storage class. openebs-hostpath may be used  instead of openebs-jiva-default if one-node cluster
