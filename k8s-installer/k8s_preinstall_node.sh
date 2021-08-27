@@ -73,6 +73,9 @@ mkdir -p /etc/systemd/system/docker.service.d
 systemctl daemon-reload
 systemctl restart docker
 
+# Enable iSCSI for OpenEBS
+sudo systemctl enable --now iscsid
+
 # Install Kubernetes components
 apt-get update
 apt-get install -y apt-transport-https ca-certificates curl
