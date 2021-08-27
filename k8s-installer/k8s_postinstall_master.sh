@@ -15,7 +15,7 @@ kubectl taint node $K8S_MASTER node-role.kubernetes.io/master:NoSchedule-
 # Enable iSCSI for OpenEBS
 sudo systemctl enable --now iscsid
 
-# Install OpenEBS
+# Install OpenEBS. Jiva and Local PV components
 kubectl apply -f https://openebs.github.io/charts/openebs-operator.yaml
 
 # Wait until storage class ready
