@@ -7,6 +7,8 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
   
 # Configure usage of Calico CNI
 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+# As an alternative, you may use Antrea
+# kubectl apply -f https://github.com/antrea-io/antrea/releases/download/v1.4.0/antrea.yml
   
 # Untaint master, so that it will accomodate workoads also
 K8S_MASTER=$(kubectl get nodes | awk '$3~/master/'| awk '{print $1}')
