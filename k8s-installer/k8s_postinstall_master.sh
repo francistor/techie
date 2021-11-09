@@ -12,9 +12,6 @@ kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 K8S_MASTER=$(kubectl get nodes | awk '$3~/master/'| awk '{print $1}')
 kubectl taint node $K8S_MASTER node-role.kubernetes.io/master:NoSchedule-
 
-# Enable iSCSI for OpenEBS
-sudo systemctl enable --now iscsid
-
 # Install OpenEBS. Jiva and Local PV components
 # Uses the default Jiva configuration, in which local pod storage. For better performance, a storage pool should be created
 kubectl apply -f https://openebs.github.io/charts/openebs-operator.yaml
