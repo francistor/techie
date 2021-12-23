@@ -12,7 +12,7 @@ K8S_VERSION=1.21.4-00
 if [[ "$(whoami)" != "root" ]]
 then
 	echo "Must be root but was $(whoami)";
-	exit;
+	exit 1;
 fi
 
 apt-get update
@@ -22,9 +22,9 @@ apt-get upgrade -y
 if ! grep -q "192.168.122.2" /etc/hosts
 then
 	echo "# Added by k8s installer" >> /etc/hosts
-	echo "192.168.122.2	n2" >> /etc/hosts
-	echo "192.168.122.3	n3" >> /etc/hosts
-	echo "192.168.122.4	n4" >> /etc/hosts
+	echo "192.168.122.2	vm2" >> /etc/hosts
+	echo "192.168.122.3	vm3" >> /etc/hosts
+	echo "192.168.122.4	vm4" >> /etc/hosts
 fi
 
 # Delete swap file in /etc/fstab
@@ -90,4 +90,6 @@ apt-get update
 # To install a specific version apt-get install -y kubelet=1.21.4-00. Use allow-downgrades because some software may be already installed
 apt-get install -y kubelet=$K8S_VERSION kubeadm=$K8S_VERSION kubectl=$K8S_VERSION --allow-downgrades
 apt-mark hold kubelet kubeadm kubectl
+
+touch $HOME/K8S_Preinstall_Finished
 

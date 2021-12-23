@@ -1,0 +1,17 @@
+# Kubernetes installation
+
+[manager]
+192.168.122.1
+
+[workers]
+192.168.122.3
+192.168.122.4
+
+[masters]
+192.168.122.2
+
+[k8snodes:children]
+masters
+workers
+
+

@@ -1,0 +1,40 @@
+- name: Create virtual machines
+  gather_facts: no
+  hosts: manager
+  become: yes
+  tasks:
+    - name: Create Controller VM
+      ansible.builtin.script: 
+        cmd: "../../vm-installer/vm-install.sh --vm-index 2 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
+
+- name: Wait for ssh available
+  gather_facts: no
+  hosts: masters
+  tasks:
+    - name: Wait for connection
+      wait_for_connection:
+        timeout: 180
+        connect_timeout: 10
+        sleep: 5
+
+- name: Pre-install k8s
+  gather_facts: no
+  hosts: masters
+  become: yes
+  tasks:
+    - name: K8S Node Preinstallation
+      ansible.builtin.script: 
+        cmd: ../k8s_preinstall_node.sh
+    - name: Copy kubeadm config file
+      ansible.builtin.copy:
+        src: ../kubeadm_init_config.yaml
+        dest: /root
+
+- name: Kubeadm init
+  gather_facts: no
+  hosts: masters
+  become: yes
+  tasks:
+    - name: Kubeadm init
+      ansible.builtin.script: 
+        cmd: "../k8s_init_cluster.sh"
