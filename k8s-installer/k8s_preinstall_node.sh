@@ -5,8 +5,13 @@
 # in the cluster. To be exectued as the first step
 ############################################################
 
+# Abort if error
+set -e
+
 # Specific version to install
 K8S_VERSION=1.21.4-00
+
+echo "[K8S-INSTALL] Installing K8S $K8S_VERSION"
 
 # Check I'm root
 if [[ "$(whoami)" != "root" ]]
@@ -15,8 +20,10 @@ then
 	exit 1;
 fi
 
+echo "[K8S-INSTALL] updating & upgrading..."
 apt-get update
 apt-get upgrade -y
+echo "[K8S-INSTALL] done."
 
 # Add to /etc/hosts
 if ! grep -q "192.168.122.2" /etc/hosts
@@ -32,7 +39,7 @@ sed -i '/swap/d' /etc/fstab
 swapoff -a
 
 # Load required modules 
-
+echo "[K8S-INSTALL] Applying system configuration..."
 cat <<EOF > /etc/modules-load.d/k8s.conf
 br_netfilter
 overlay
@@ -50,8 +57,10 @@ EOF
 
 # Apply
 sysctl --system
+echo "[K8S-INSTALL] done."
 
 # Install Docker
+echo "[K8S-INSTALL] Installing docker..."
 apt-get install -y docker.io
 systemctl enable docker.service
 
@@ -72,11 +81,15 @@ mkdir -p /etc/systemd/system/docker.service.d
 # Restart docker.
 systemctl daemon-reload
 systemctl restart docker
+echo "[K8S-INSTALL] done."
 
 # Enable iSCSI for OpenEBS
+echo "[K8S-INSTALL] Enabiling iscsid..."
 sudo systemctl enable --now iscsid
+echo "[K8S-INSTALL] done"
 
 # Install Kubernetes components
+echo "[K8S-INSTALL] Installing Kubernetes..."
 apt-get update
 apt-get install -y apt-transport-https ca-certificates curl
 
@@ -90,6 +103,7 @@ apt-get update
 # To install a specific version apt-get install -y kubelet=1.21.4-00. Use allow-downgrades because some software may be already installed
 apt-get install -y kubelet=$K8S_VERSION kubeadm=$K8S_VERSION kubectl=$K8S_VERSION --allow-downgrades
 apt-mark hold kubelet kubeadm kubectl
+echo "[K8S-INSTALL] done."
 
 touch $HOME/K8S_Preinstall_Finished
 

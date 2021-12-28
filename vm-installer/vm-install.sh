@@ -91,8 +91,13 @@ mkdir -p $SCRATCH_DIR
 IMAGES_DIR=$(dirname "$BASE_IMAGE")
 
 # Cleanup
+# Destroy domain if running (destroy gives error if not running)
 if virsh list | grep "vm$VM_INDEX"; then
     virsh destroy vm$VM_INDEX
+fi
+
+# Undefine (should have been stopped by the previous command)
+if virsh list --all | grep "vm$VM_INDEX"; then
     virsh undefine vm$VM_INDEX
 fi
 sudo rm -f "$IMAGES_DIR/vm$VM_INDEX.qcow2" $SCRATCH_DIR/user-data $SCRATCH_DIR/meta-data $SCRATCH_DIR/network-data $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso
@@ -123,7 +128,7 @@ disable_root: false
 # Generate meta-data
 echo "instance-id: vm$VM_INDEX
 local-hostname: vm$VM_INDEX
-"| sudo tee $SCRATCH_DIR/meta-data
+" > $SCRATCH_DIR/meta-data
 
 # Generate network-data
 echo "
@@ -149,7 +154,7 @@ vlans:
     link: ens3
     addresses:
     - 192.168.102.$VM_INDEX/24
-"| sudo tee $SCRATCH_DIR/network-config
+" > $SCRATCH_DIR/network-config
 
 # CDROM with all meta-data
 # Volumen name is cidata to be detected by cloudinit

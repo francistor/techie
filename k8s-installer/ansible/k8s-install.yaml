@@ -1,35 +1,49 @@
-- name: Create virtual machines
+# Creates virtual machines and installs a Kubernetes Cluster
+
+- name: Create virtual machines. Master and Workers
   gather_facts: no
   hosts: manager
   become: yes
   tasks:
-    - name: Create Controller VM
+    - name: Create Controller (VM2)
       ansible.builtin.script: 
         cmd: "../../vm-installer/vm-install.sh --vm-index 2 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
+    - name: Create Worker node (VM3)
+      ansible.builtin.script: 
+        cmd: "../../vm-installer/vm-install.sh --vm-index 3 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
+    - name: Create Worker node (VM4)
+      ansible.builtin.script: 
+        cmd: "../../vm-installer/vm-install.sh --vm-index 4 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
 
-- name: Wait for ssh available
+- name: Wait for all created virtual machines up
   gather_facts: no
-  hosts: masters
+  hosts: k8snodes
   tasks:
-    - name: Wait for connection
+    - name: Wait for ansible connection.
       wait_for_connection:
         timeout: 180
         connect_timeout: 10
         sleep: 5
 
-- name: Pre-install k8s
+- name: Pre-install k8s in all nodes
   gather_facts: no
-  hosts: masters
+  hosts: k8snodes
   become: yes
   tasks:
     - name: K8S Node Preinstallation
       ansible.builtin.script: 
         cmd: ../k8s_preinstall_node.sh
-    - name: Copy kubeadm config file
-      ansible.builtin.copy:
-        src: ../kubeadm_init_config.yaml
-        dest: /root
 
+- name: Copy kubeadm config file 
+  gather_facts: no
+  hosts: masters
+  tasks: 
+      - name: Copy kubeadm config file
+        ansible.builtin.copy:
+          src: ../kubeadm_init_config.yaml
+          dest: .
+
+# The output we want is in two lines. The first one ends with an \ character
 - name: Kubeadm init
   gather_facts: no
   hosts: masters
@@ -38,3 +52,38 @@
     - name: Kubeadm init
       ansible.builtin.script: 
         cmd: "../k8s_init_cluster.sh"
+      register: init_output
+    - set_fact:
+        init_command: "{{ init_output.stdout | regex_search('kubeadm join .+ --token [^\\\\]*') }} {{ init_output.stdout | regex_search('--discovery-token-ca-cert-hash .+') }}"
+
+# The variable init_command, which was set as a fact for another group, so we cannot directly
+# use it, but needs this hostvars... syntax.
+- name: Join workers
+  gather_facts: no
+  hosts: workers
+  become: yes
+  tasks:
+    - debug: 
+        msg: "{{ hostvars[groups['masters'][0]]['init_command'] }}"
+    - name: Join Cluster
+      ansible.builtin.command: "{{ hostvars[groups['masters'][0]]['init_command'] }}"
+
+# Copy kubeconfig file to local
+- name: Kubeconfig
+  gather_facts: no
+  hosts: master
+  become: yes
+  tasks: 
+    - ansible.builtin.fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: kubeconfig-fetched
+        flat: yes
+
+# Post installation tasks
+- name: Configure cluster
+  gather_facts: no
+  hosts: master
+  tasks:
+    - name: Configure cluster
+      ansible.builtin.script: 
+        cmd: "../k8s_postinstall_master.sh"

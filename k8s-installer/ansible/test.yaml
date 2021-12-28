@@ -1,0 +1,34 @@
+
+- name: Test
+  gather_facts: no
+  hosts: manager
+  tasks:
+    - name: "Test"
+      ansible.builtin.script: 
+        cmd: "test.sh"
+      register: init_output
+    - set_fact:
+        init_command: "{{ init_output.stdout | regex_search('kubeadm join .+discovery-token-ca-cert-hash [:0-9a-z]*')}}"
+
+- name: Print
+  hosts: workers
+  gather_facts: no
+  become: yes
+  tasks:
+  - debug: 
+      msg: "{{ hostvars[groups['manager'][0]]['init_command'] }}"
+
+- name: Get join info
+  hosts: masters
+  tasks:
+  - slurp:
+      src: "join_cluster.txt"
+    register: join_cluster
+  - debug:
+      msg: "{{ join_cluster.content | b64decode | regex_search('kubeadm join .+ --token [^\\\\]*') }}{{ join_cluster.content | b64decode | regex_search('--discovery-token-ca-cert-hash .+') }}"
+
+
+
+
+#kubeadm join 192.168.122.2:6443 --token 0mi40v.qektyrrpn6gfn957 \
+#--discovery-token-ca-cert-hash sha256:9f145bc53ca92faa439efccd0311e95422bb69272cd0b42ffa8da072004826da 

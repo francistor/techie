@@ -10,6 +10,9 @@
 [masters]
 192.168.122.2
 
+[master]
+192.168.122.2
+
 [k8snodes:children]
 masters
 workers
