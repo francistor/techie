@@ -45,7 +45,7 @@ CREATE TABLE `city` (
 ) ENGINE=NDBCLUSTER DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-
+CREATE INDEX ON city (Name);
 
 
 --

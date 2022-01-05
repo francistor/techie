@@ -10,10 +10,11 @@ K8S_MASTER=$(kubectl get nodes | awk '$3~/master/'| awk '{print $1}')
 kubectl taint node vm2 node-role.kubernetes.io/master:NoSchedule-
   
 # Configure usage of Calico CNI
-echo "[K8S_POSTINSTALL] Installing Calico..."
-kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+# echo "[K8S_POSTINSTALL] Installing Calico..."
+# kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 # As an alternative, you may use Antrea
-# kubectl apply -f https://github.com/antrea-io/antrea/releases/download/v1.4.0/antrea.yml
+echo "[K8S_POSTINSTALL] Installing Antrea..."
+kubectl apply -f https://github.com/antrea-io/antrea/releases/download/v1.4.0/antrea.yml
 echo "[K8S_POSTINSTALL] Done"
 
 # Install OpenEBS. Jiva and Local PV components

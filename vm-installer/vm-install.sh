@@ -9,7 +9,7 @@
 
 # Example
 # export PASSWORD=<some password>
-# ./vm-install.sh --vm-index 2 --ip-address 192.168.122.2 --gw-address 192.168.122.1 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 1024 --cpu 1
+# ./vm-install.sh --vm-index 2 --ip-address 192.168.122.2 --gw-address 192.168.122.1 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2
 # With defaults
 # ./vm-install.sh --vm-index 2 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 1024 --cpu 1
 

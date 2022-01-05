@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -25,7 +26,7 @@ func main() {
 		User:   "francisco",
 		Passwd: "Majes1tad",
 		Net:    "tcp",
-		Addr:   "vm9:3306",
+		Addr:   "mysql-a:3306",
 		DBName: "world",
 	}
 
@@ -42,11 +43,28 @@ func main() {
 
 	log.Println("Connected!")
 
-	cities, err := getCities()
-	if err != nil {
-		log.Fatal(err)
+	var count int = 1000
+
+	for j := 0; j < 1; j++ {
+
+		var startTime1 = time.Now()
+		fmt.Println("Inserting cities")
+		insertCities(count)
+		var endTime1 = time.Now()
+		fmt.Printf("%d operations per second\n", int64(1000*count)/(endTime1.Sub(startTime1).Milliseconds()))
+
+		var startTime2 = time.Now()
+		fmt.Println("Deleting cities")
+		deleteCities(count)
+		var endTime2 = time.Now()
+		fmt.Printf("%d operations per second\n", int64(1000*count)/(endTime2.Sub(startTime2).Milliseconds()))
+
+		cities, err := getCities()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("Found %d cities\n", len(cities))
 	}
-	fmt.Printf("Cities found %v\n", cities)
 }
 
 func getCities() ([]City, error) {
@@ -54,7 +72,7 @@ func getCities() ([]City, error) {
 
 	rows, err := db.Query("select * from city")
 	if err != nil {
-		return nil, fmt.Errorf("Query error", err)
+		return nil, fmt.Errorf("query error %s", err)
 	}
 	defer rows.Close()
 
@@ -71,4 +89,32 @@ func getCities() ([]City, error) {
 	}
 
 	return cities, nil
+}
+
+func insertCities(count int) {
+	stmt, err := db.Prepare("INSERT INTO city (Name, CountryCode, District, Population) VALUES(?, ?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	for i := 0; i < count; i++ {
+		_, err := stmt.Exec(fmt.Sprintf("City%d", i), "ESP", "DummyDistrict", i)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func deleteCities(count int) {
+	stmt, err := db.Prepare("DELETE FROM city where Name = ?")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	for i := 0; i < count; i++ {
+		_, err := stmt.Exec(fmt.Sprintf("City%d", i))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
