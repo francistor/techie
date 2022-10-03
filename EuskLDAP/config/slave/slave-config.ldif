@@ -28,3 +28,12 @@ dn: cn=config
 changeType: modify
 replace: olcLogLevel
 olcLogLevel: stats syncrepl
+
+# Enable monitoring
+dn: olcDatabase={4}Monitor,cn=config
+changetype: add
+objectClass: olcDatabaseConfig
+objectClass: olcMonitorConfig
+olcDatabase: {4}Monitor
+# Used if restricting to monitoring user
+# olcAccess: {0}to dn.subtree="cn=Monitor" by dn.base="<NEW_MONITORING_USER_DISTINGUISHED_NAME>" read by * none
