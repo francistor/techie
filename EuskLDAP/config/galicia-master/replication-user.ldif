@@ -1,0 +1,7 @@
+dn: cn=syncrepl,ou=aaa,o=ggc
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+cn: syncrepl
+description: Replication user
+userPassword: syncrepl
+

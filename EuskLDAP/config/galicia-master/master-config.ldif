@@ -1,0 +1,35 @@
+# Load syncrepl module
+dn: cn=module{0},cn=config
+changetype: modify
+add: olcModuleLoad
+olcModuleLoad: syncprov.la
+
+# syncrepl Provider configuration. Make sure that indexes for entryCSN and entryUUID already exist
+dn: olcOverlay=syncprov,olcDatabase={2}mdb,cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcSyncProvConfig
+olcOverlay: syncprov
+olcSpCheckpoint: 100 1
+olcSpSessionLog: 100
+
+# Permissions for the replication user
+dn: olcDatabase={2}mdb,cn=config
+changetype: modify
+add: olcAccess
+olcAccess: {0}to *
+  by dn.exact="cn=syncrepl,ou=aaa,o=ggc" read
+  by * break
+-
+add: olcLimits
+olcLimits: dn.exact="cn=syncrepl,ou=aaa,o=ggc"
+  time.soft=unlimited time.hard=unlimited
+  size.soft=unlimited size.hard=unlimited
+  
+# Configure logging
+dn: cn=config
+changeType: modify
+replace: olcLogLevel
+olcLogLevel: stats
+
+

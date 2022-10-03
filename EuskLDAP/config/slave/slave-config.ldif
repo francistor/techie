@@ -1,0 +1,30 @@
+# Load module
+dn: cn=module{0},cn=config
+changetype: modify
+add: olcModuleLoad
+olcModuleLoad: syncprov
+-
+add: olcModuleLoad
+olcModuleLoad: {1}back_monitor
+
+# Configure replication. --- MAKE sure the entryUUID eq index already exists or create it otherwise
+dn: olcDatabase={2}mdb,cn=config
+changetype: modify
+# Configure remote
+add: olcSyncrepl
+olcSyncrepl: rid=0
+  provider=ldap://n2
+  bindmethod=simple
+  binddn="cn=syncrepl,ou=aaa,o=ggc" credentials=syncrepl
+  searchbase="ou=aaa,o=ggc"
+  schemachecking=on
+  type=refreshAndPersist retry="60 +"
+-
+add: olcUpdateRef
+olcUpdateRef: ldap://n2
+
+# Configure logging
+dn: cn=config
+changeType: modify
+replace: olcLogLevel
+olcLogLevel: stats syncrepl

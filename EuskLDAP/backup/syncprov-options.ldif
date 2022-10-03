@@ -1,0 +1,17 @@
+# Add indexes to the frontend db.dn: olcDatabase={3}mdb,cn=configchangetype: modifyadd: olcDbIndexolcDbIndex: entryCSN eq-add: olcDbIndexolcDbIndex: entryUUID eq# syncrepl Provider for desired dbdn: olcOverlay=syncprov,olcDatabase={3}mdb,cn=configchangetype: addobjectClass: olcOverlayConfigobjectClass: olcSyncProvConfigolcOverlay: syncprovolcSpCheckpoint: 100 10olcSpSessionLog: 100# Add indexes to the frontend db.
+dn: olcDatabase={3}mdb,cn=config
+changetype: modify
+add: olcDbIndex
+olcDbIndex: entryCSN eq
+-
+add: olcDbIndex
+olcDbIndex: entryUUID eq
+
+# syncrepl Provider for desired db
+dn: olcOverlay=syncprov,olcDatabase={3}mdb,cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcSyncProvConfig
+olcOverlay: syncprov
+olcSpCheckpoint: 100 10
+olcSpSessionLog: 100
