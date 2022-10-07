@@ -68,29 +68,24 @@ METALLB_IP_RANGE=$DEFAULT_IP-$DEFAULT_IP
 
 # Install metallb
 echo "[K8S_POSTINSTALL] Installing Metallb..."
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/namespace.yaml
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/metallb.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
 # On first install only
 kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 
 # Configure metallb
-echo "apiVersion: v1
-kind: ConfigMap
+echo "apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
 metadata:
+  name: first-pool
   namespace: metallb-system
-  name: config
-data:
-  config: |
-    address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-      - $METALLB_IP_RANGE" | kubectl apply -f -
+spec:
+  addresses:
+  - $METALLB_IP_RANGE" | kubectl apply -f -
 echo "[K8S_POSTINSTALL] Done"
       
 # Install Ingress controller. For kubernetes > 1.21 this will not work. An updated version will be required
 echo "[K8S_POSTINSTALL] Installing Ingress..."
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/baremetal/deploy.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.4.0/deploy/static/provider/cloud/deploy.yaml
 
 # Approve pending certificates
 for csr in $(kubectl get csr| awk '{print $1}'); do kubectl certificate approve $csr; done

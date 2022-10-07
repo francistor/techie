@@ -87,6 +87,7 @@ cat <<EOF >>/etc/containerd/config.toml
   [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
     SystemdCgroup = true
 EOF
+systemctl restart containerd
 
 echo "[K8S-INSTALL] Installing kubeadm..."
 sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
