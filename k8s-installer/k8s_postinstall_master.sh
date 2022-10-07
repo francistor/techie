@@ -6,15 +6,15 @@ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 # Untaint master, so that it will accomodate workoads also
-K8S_MASTER=$(kubectl get nodes | awk '$3~/master/'| awk '{print $1}')
-kubectl taint node vm2 node-role.kubernetes.io/master:NoSchedule-
+# delete this line! K8S_MASTER=$(kubectl get nodes | awk '$3~/master/'| awk '{print $1}')
+kubectl taint node vm2 node-role.kubernetes.io/control-plane:NoSchedule-
   
 # Configure usage of Calico CNI
 # echo "[K8S_POSTINSTALL] Installing Calico..."
-# kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 # As an alternative, you may use Antrea
-echo "[K8S_POSTINSTALL] Installing Antrea..."
-kubectl apply -f https://github.com/antrea-io/antrea/releases/download/v1.4.0/antrea.yml
+# echo "[K8S_POSTINSTALL] Installing Antrea..."
+# kubectl apply -f https://github.com/antrea-io/antrea/releases/download/v1.4.0/antrea.yml
 echo "[K8S_POSTINSTALL] Done"
 
 # Install OpenEBS. Jiva and Local PV components

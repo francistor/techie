@@ -7,11 +7,14 @@
 
 # Additional interface in provider_net
 
-# Example
+# curl -L -o $HOME/images/focal-server-cloudimg-amd64.img http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+# chown libvirt-qemu:kvm $HOME/images/focal-server-cloudimg-amd64.img
+
+# Example# curl https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
 # export PASSWORD=<some password>
-# ./vm-install.sh --vm-index 2 --ip-address 192.168.122.2 --gw-address 192.168.122.1 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2
+# ./vm-install.sh --vm-index 2 --ip-address 192.168.122.2 --gw-address 192.168.122.1 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2
 # With defaults
-# ./vm-install.sh --vm-index 2 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 1024 --cpu 1
+# ./vm-install.sh --vm-index 2 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 1024 --cpu 1
 
 set -e
 
@@ -34,7 +37,7 @@ usage()
 # Single colon (:) - Value is required for this option
 # Double colon (::) - Value is optional
 # No colons - No values are required
-PARSED_ARGUMENTS=$(getopt -n vm-install -o "" --longoptions vm-index:,ip-address:,gw-address:,base-image:,size:,memory:,cpu:,pubkey:,password: -- "$@")
+PARSED_ARGUMENTS=$(getopt -n vm-install -o "" --longoptions help::,vm-index:,ip-address:,gw-address:,base-image:,size:,memory:,cpu:,pubkey:,password: -- "$@")
 VALID_ARGUMENTS=$?
 if [ "$VALID_ARGUMENTS" != "0" ]; then
   usage
@@ -44,6 +47,7 @@ eval set -- "$PARSED_ARGUMENTS"
 while :
 do
   case "$1" in
+    --help) 	     usage;		  exit	   ;;
     --vm-index)     VM_INDEX="$2";      shift 2  ;;
     --ip-address)   IP_ADDRESS="$2";    shift 2  ;;
     --gw-address)   GW_ADDRESS="$2";    shift 2  ;;
@@ -163,9 +167,13 @@ genisoimage -output $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso -V cidata -r -J $SCRA
 # Create image
 # --graphics none to avoid console, vnc for console
 # --noautoconsole do not attach to console. Just install and continue
+# Two network interfaces. The second one, with two VLAN and two IP addresses
 virt-install --name vm$VM_INDEX --memory $VM_MEMORY --vcpus $VM_CPU --disk $IMAGES_DIR/vm$VM_INDEX.qcow2,device=disk,bus=virtio \
-  --disk $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso,device=cdrom --os-type linux --virt-type kvm --network network=default,model=virtio\
+  --disk $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso,device=cdrom --os-type generic --virt-type kvm --network network=default,model=virtio\
   --network network=provider-net,model=virtio --import --graphics none --console pty,target_type=serial --noautoconsole
 
 # Cleanup transient data
 sudo rm -f $SCRATCH_DIR/user-data $SCRATCH_DIR/meta-data $SCRATCH_DIR/network-config
+
+# Generate network-data using VLAN
+
