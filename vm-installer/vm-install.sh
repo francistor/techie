@@ -16,6 +16,12 @@
 # With defaults
 # ./vm-install.sh --vm-index 2 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 1024 --cpu 1
 
+# Requires mkpasswd installed (apt-get install whois)
+
+# This is to make sure that the virsh commands executed via shell do see the networks
+# https://askubuntu.com/questions/1066230/cannot-execute-virsh-command-through-ssh-on-ubuntu-18-04
+export LIBVIRT_DEFAULT_URI=qemu:///system
+
 set -e
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
@@ -104,7 +110,7 @@ fi
 if virsh list --all | grep "vm$VM_INDEX"; then
     virsh undefine vm$VM_INDEX
 fi
-sudo rm -f "$IMAGES_DIR/vm$VM_INDEX.qcow2" $SCRATCH_DIR/user-data $SCRATCH_DIR/meta-data $SCRATCH_DIR/network-data $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso
+rm -f "$IMAGES_DIR/vm$VM_INDEX.qcow2" $SCRATCH_DIR/user-data $SCRATCH_DIR/meta-data $SCRATCH_DIR/network-data $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso
 
 # Create image with the specified size
 qemu-img create -b $BASE_IMAGE -f qcow2 -F qcow2 "$IMAGES_DIR/vm$VM_INDEX.qcow2" $SIZE
@@ -173,7 +179,7 @@ virt-install --name vm$VM_INDEX --memory $VM_MEMORY --vcpus $VM_CPU --disk $IMAG
   --network network=provider-net,model=virtio --import --graphics none --console pty,target_type=serial --noautoconsole
 
 # Cleanup transient data
-sudo rm -f $SCRATCH_DIR/user-data $SCRATCH_DIR/meta-data $SCRATCH_DIR/network-config
+rm -f $SCRATCH_DIR/user-data $SCRATCH_DIR/meta-data $SCRATCH_DIR/network-config
 
 # Generate network-data using VLAN
 

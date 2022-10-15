@@ -1,19 +1,20 @@
 # Creates virtual machines and installs a Kubernetes Cluster
+# Make sure tha manager machine (which is the localhost) can be accessed
+# Requires export PASSWORD=<password>
 
 - name: Create virtual machines. Master and Workers
   gather_facts: no
   hosts: manager
-  become: yes
   tasks:
     - name: Create Controller (VM2)
       ansible.builtin.script: 
-        cmd: "../../vm-installer/vm-install.sh --vm-index 2 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
+        cmd: "../../vm-installer/vm-install.sh --vm-index 2 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
     - name: Create Worker node (VM3)
       ansible.builtin.script: 
-        cmd: "../../vm-installer/vm-install.sh --vm-index 3 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
+        cmd: "../../vm-installer/vm-install.sh --vm-index 3 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
     - name: Create Worker node (VM4)
       ansible.builtin.script: 
-        cmd: "../../vm-installer/vm-install.sh --vm-index 4 --base-image /home/francisco/images/ubuntu20.04-base.qcow2 --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
+        cmd: "../../vm-installer/vm-install.sh --vm-index 4 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
 
 - name: Wait for all created virtual machines up
   gather_facts: no
