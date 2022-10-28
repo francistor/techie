@@ -1,0 +1,5 @@
+{"properties": [{
+  "name": "product.service.url",
+  "type": "java.lang.String",
+  "description": "The URL where the product REST interface is listening"
+}]}
