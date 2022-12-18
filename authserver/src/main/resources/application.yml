@@ -1,0 +1,14 @@
+spring:
+    datasource:
+        "generate-unique-name": false
+        name: tacocloud
+        username: taco
+        password: taco
+
+server:
+    port: 9000
+
+logging:
+    level:
+        root: INFO
+
