@@ -41,26 +41,26 @@ import com.nimbusds.jose.proc.SecurityContext;
 @Configuration(proxyBeanMethods = false)
 public class AppConfiguration {
 
-    @Bean
-    @Order(1)
-    public SecurityFilterChain authServerSecurityFilterChain(HttpSecurity http) throws Exception {
-        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-        http.getConfigurer(OAuth2AuthorizationServerConfigurer.class).oidc(Customizer.withDefaults());
-        http.exceptionHandling((exceptions) -> 
-            exceptions.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
-        ).
-        // Accept access tokens for User Info and/or Client Registration
-        oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt); 
+	@Bean
+	@Order(1)
+	public SecurityFilterChain authServerSecurityFilterChain(HttpSecurity http) throws Exception {
+		OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
+		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class).oidc(Customizer.withDefaults());
+		http.exceptionHandling((exceptions) -> 
+			exceptions.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
+		). 
+		// Accept access tokens for User Info and/or Client Registration
+		oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt); 
 
-        return http.build();
-    }
+		return http.build();
+	}
 
-    @Bean 
+	@Bean 
 	public AuthorizationServerSettings authorizationServerSettings() {
 		return AuthorizationServerSettings.builder().build();
 	}
 
-    @Bean 
+	@Bean 
 	public RegisteredClientRepository registeredClientRepository(JdbcTemplate jdbcTemplate) {
 		/*
 		RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
@@ -90,13 +90,15 @@ public class AppConfiguration {
 	@Bean
 	public OAuth2AuthorizationService authorizationService(JdbcTemplate jdbcTemplate, RegisteredClientRepository clientRepo) {
 		var service = new JdbcOAuth2AuthorizationService(jdbcTemplate, clientRepo);
+
+		// Due to the problem with user serialization, we have to do all this
 		JdbcOAuth2AuthorizationService.OAuth2AuthorizationRowMapper rowMapper = new JdbcOAuth2AuthorizationService.OAuth2AuthorizationRowMapper(clientRepo);
 		ObjectMapper objectMapper = new ObjectMapper();
 		ClassLoader classLoader = JdbcOAuth2AuthorizationService.class.getClassLoader();
 		List<com.fasterxml.jackson.databind.Module> securityModules = SecurityJackson2Modules.getModules(classLoader);
 		objectMapper.registerModules(securityModules);
 		objectMapper.registerModule(new OAuth2AuthorizationServerJackson2Module());
-				// You will need to write the Mixin for your class so Jackson can marshall it.
+		// Use here the Mixin class
 		objectMapper.addMixIn(User.class, UserMixin.class);
 		rowMapper.setObjectMapper(objectMapper);
 		service.setAuthorizationRowMapper(rowMapper);

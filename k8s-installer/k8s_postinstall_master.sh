@@ -63,9 +63,9 @@ kubectl patch storageclass openebs-jiva-csi-sc -p '{"metadata": {"annotations":{
 echo "[K8S_POSTINSTALL] Done"
 
 # Install metallb
-DEFAULT_IP=192.168.122.205
-METALLB_IP_RANGE=$DEFAULT_IP-$DEFAULT_IP
-
+START_LB_IP=192.168.122.210
+END_LB_IP=192.168.122.219
+METALLB_IP_RANGE=$START_LB_IP-$END_LB_IP
 # Install metallb
 echo "[K8S_POSTINSTALL] Installing Metallb..."
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
@@ -83,7 +83,8 @@ spec:
   - $METALLB_IP_RANGE" | kubectl apply -f -
 echo "[K8S_POSTINSTALL] Done"
       
-# Install Ingress controller. For kubernetes > 1.21 this will not work. An updated version will be required
+# Install Ingress controller. This is deprecated. TODO: Use another version
+# Ingress will take the first IP address from the load balancer
 echo "[K8S_POSTINSTALL] Installing Ingress..."
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.4.0/deploy/static/provider/cloud/deploy.yaml
 
