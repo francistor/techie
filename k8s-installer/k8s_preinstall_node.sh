@@ -9,7 +9,7 @@
 set -e
 
 # Specific version to install
-K8S_VERSION=1.24.6-00
+K8S_VERSION=1.26.0-00
 
 echo "[K8S-INSTALL] Installing K8S $K8S_VERSION"
 

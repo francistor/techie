@@ -8,6 +8,10 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 # Untaint master, so that it will accomodate workoads also
 # delete this line! K8S_MASTER=$(kubectl get nodes | awk '$3~/master/'| awk '{print $1}')
 kubectl taint node vm2 node-role.kubernetes.io/control-plane:NoSchedule-
+kubectl taint nodes --all node-role.kubernetes.io/master-
+
+# Approve pending certificates
+for csr in $(kubectl get csr| awk '{print $1}'); do kubectl certificate approve $csr; done
   
 # Configure usage of Calico CNI
 # echo "[K8S_POSTINSTALL] Installing Calico..."
@@ -68,9 +72,7 @@ END_LB_IP=192.168.122.219
 METALLB_IP_RANGE=$START_LB_IP-$END_LB_IP
 # Install metallb
 echo "[K8S_POSTINSTALL] Installing Metallb..."
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
-# On first install only
-kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
 
 # Configure metallb
 echo "apiVersion: metallb.io/v1beta1
@@ -81,15 +83,20 @@ metadata:
 spec:
   addresses:
   - $METALLB_IP_RANGE" | kubectl apply -f -
+
+# Expose using L2
+echo "apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: example
+  namespace: metallb-system" | kubectl apply -f -
+
 echo "[K8S_POSTINSTALL] Done"
       
 # Install Ingress controller. This is deprecated. TODO: Use another version
 # Ingress will take the first IP address from the load balancer
 echo "[K8S_POSTINSTALL] Installing Ingress..."
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.4.0/deploy/static/provider/cloud/deploy.yaml
-
-# Approve pending certificates
-for csr in $(kubectl get csr| awk '{print $1}'); do kubectl certificate approve $csr; done
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.5.1/deploy/static/provider/cloud/deploy.yaml
 
 # The end
 echo "[K8S_POSTINSTALL] Done"
