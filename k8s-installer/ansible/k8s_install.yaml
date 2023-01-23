@@ -5,16 +5,24 @@
 - name: Create virtual machines. Master and Workers
   gather_facts: no
   hosts: manager
+  vars:
+    image: /home/francisco/images/focal-server-cloudimg-amd64.img
+    imageSize: 50G
+    rawSize: 10
+    memory: 4096
+    vcpu: 2
+    pubKey: /home/francisco/.ssh/id_rsa.pub
+    cmdPre: "../../vm-installer/vm-install.sh --vm-index "
+    cmdPost: "--base-image {{ image }} --size {{ imageSize }} --rawsize {{ rawSize}}  --pubkey {{ pubKey }} --memory {{ memory }} --cpu {{ vcpu }} --password "
   tasks:
-    - name: Create Controller (VM2)
+    - name: Create Controller Virtual Machines
       ansible.builtin.script: 
-        cmd: "../../vm-installer/vm-install.sh --vm-index 2 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
-    - name: Create Worker node (VM3)
-      ansible.builtin.script: 
-        cmd: "../../vm-installer/vm-install.sh --vm-index 3 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
-    - name: Create Worker node (VM4)
-      ansible.builtin.script: 
-        cmd: "../../vm-installer/vm-install.sh --vm-index 4 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
+      # cmd: "../../vm-installer/vm-install.sh --vm-index 2 --base-image /home/francisco/images/focal-server-cloudimg-amd64.img --size 50G --rawsize 10 --pubkey /home/francisco/.ssh/id_rsa.pub --memory 4096 --cpu 2 --password {{lookup('env', 'PASSWORD')}}"
+        cmd: "{{ cmdPre }} {{ item }} {{ cmdPost }} {{lookup('env', 'PASSWORD')}}"
+      loop:
+      - 2
+      - 3
+      - 4
 
 - name: Wait for all created virtual machines up
   gather_facts: no
@@ -81,10 +89,21 @@
         flat: yes
 
 # Post installation tasks
-- name: Configure cluster
+- name: Configure networking
   gather_facts: no
   hosts: master
   tasks:
-    - name: Configure cluster
+    - name: Configure networking
       ansible.builtin.script: 
-        cmd: "../k8s_postinstall_master.sh"
+        cmd: "../k8s_postinstall_network.sh"
+        
+# Post installation tasks
+- name: Configure add-ons
+  gather_facts: no
+  hosts: master
+  tasks:
+    - name: Configure addons
+      ansible.builtin.script: 
+        cmd: "../k8s_postinstall_addons.sh"
+        
+        

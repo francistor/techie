@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Installs an ubuntu 20 virtual machine using virsh-install and cloud-init, with the specified IP addressing
+# Installs an ubuntu virtual machine using virsh-install and cloud-init, with the specified IP addressing
 # Username francisco, with the password specified in an environment variable
 # The directory fo the base image specified is used as the folder for new images created
 # Cleanup is performed before creation. Images for virtual machines with the same specified name will be deleted
@@ -33,7 +33,8 @@ usage()
     --ip-address <ip-address>    
     --gw-address <gateway-address>
     --base-image <base-image>
-    --size <size-of-image>
+    --size <size-of-image> plus \"G\"
+    --rawsize <size-of-additional-raw-disk> without \"G\"
     --memory <memory-in-gigabytes>
     --cpu <number-of-cpu>
     --pubkey <path-to-public-key>";
@@ -43,7 +44,7 @@ usage()
 # Single colon (:) - Value is required for this option
 # Double colon (::) - Value is optional
 # No colons - No values are required
-PARSED_ARGUMENTS=$(getopt -n vm-install -o "" --longoptions help::,vm-index:,ip-address:,gw-address:,base-image:,size:,memory:,cpu:,pubkey:,password: -- "$@")
+PARSED_ARGUMENTS=$(getopt -n vm-install -o "" --longoptions help::,vm-index:,ip-address:,gw-address:,base-image:,size:,rawsize:,memory:,cpu:,pubkey:,password: -- "$@")
 VALID_ARGUMENTS=$?
 if [ "$VALID_ARGUMENTS" != "0" ]; then
   usage
@@ -59,6 +60,7 @@ do
     --gw-address)   GW_ADDRESS="$2";    shift 2  ;;
     --base-image)   BASE_IMAGE="$2";    shift 2  ;;
     --size)         SIZE="$2";          shift 2  ;;
+    --rawsize)      RAW_SIZE="$2";      shift 2  ;;
     --memory)       VM_MEMORY="$2";     shift 2  ;;
     --cpu)          VM_CPU="$2";        shift 2  ;;
     --pubkey)       PUBKEY="$2";        shift 2  ;;
@@ -88,12 +90,17 @@ if [ "$VM_INDEX" == "1" ]; then
     exit
 fi
 
+# Set defaults
 if [ -z "$IP_ADDRESS" ]; then
   IP_ADDRESS="192.168.122.$VM_INDEX"
 fi
 
 if [ -z "$GW_ADDRESS" ]; then
   GW_ADDRESS="192.168.122.1"
+fi
+
+if [ -z "$RAW_SIZE" ]; then
+  RAW_SIZE="10"
 fi
 
 SCRATCH_DIR=/tmp/vm-create
@@ -110,7 +117,7 @@ fi
 if virsh list --all | grep "vm$VM_INDEX"; then
     virsh undefine vm$VM_INDEX
 fi
-rm -f "$IMAGES_DIR/vm$VM_INDEX.qcow2" $SCRATCH_DIR/user-data $SCRATCH_DIR/meta-data $SCRATCH_DIR/network-data $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso
+rm -f "$IMAGES_DIR/vm$VM_INDEX.qcow2" $SCRATCH_DIR/user-data $SCRATCH_DIR/meta-data $SCRATCH_DIR/network-data $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso $IMAGES_DIR/vm$VM_INDEX.raw
 
 # Create image with the specified size
 qemu-img create -b $BASE_IMAGE -f qcow2 -F qcow2 "$IMAGES_DIR/vm$VM_INDEX.qcow2" $SIZE
@@ -174,8 +181,9 @@ genisoimage -output $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso -V cidata -r -J $SCRA
 # --graphics none to avoid console, vnc for console
 # --noautoconsole do not attach to console. Just install and continue
 # Two network interfaces. The second one, with two VLAN and two IP addresses
+# Additional raw disk. The specified file should not exist and will be created
 virt-install --name vm$VM_INDEX --memory $VM_MEMORY --vcpus $VM_CPU --disk $IMAGES_DIR/vm$VM_INDEX.qcow2,device=disk,bus=virtio \
-  --disk $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso,device=cdrom --os-type generic --virt-type kvm --network network=default,model=virtio\
+  --disk $IMAGES_DIR/cloud-init-vm$VM_INDEX.iso,device=cdrom --disk $IMAGES_DIR/vm$VM_INDEX.raw,device=disk,bus=virtio,size=$RAW_SIZE --os-type generic --virt-type kvm --network network=default,model=virtio\
   --network network=provider-net,model=virtio --import --graphics none --console pty,target_type=serial --noautoconsole
 
 # Cleanup transient data

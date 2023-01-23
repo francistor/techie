@@ -3,6 +3,12 @@
 ############################################################
 # This script installs Kubernetes software required in nodes
 # in the cluster. To be exectued as the first step
+#
+# Currently requires ubuntu focal, and a compatibiltiy
+# package for Rook is needed: linux-generic-hwe-20.04
+#
+# I'm experiencing problems with ubuntu 22, where the
+# apiserver is lost after installing calico
 ############################################################
 
 # Abort if error
@@ -20,9 +26,16 @@ then
 	exit 1;
 fi
 
+# Avoid user prompt for restarting of services. For ubuntu 22
+# Calico does not seem to work well with Ubuntu 22
+# printf "\$nrconf{restart} = 'a';\n" >> /etc/needrestart/needrestart.conf
+
 echo "[K8S-INSTALL] updating & upgrading..."
 apt-get update
 apt-get upgrade -y
+# Use this for Ubuntu 20. Not needed for Ubuntu 22 which has a higher kernel
+# https://pullanswer.com/questions/newly-created-ec-pool-pvc-mounts-fail-operator-fails-to-reconcile
+apt-get install -y linux-generic-hwe-20.04
 echo "[K8S-INSTALL] done."
 
 # Add to /etc/hosts
