@@ -41,7 +41,7 @@ spec:
 echo "apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
-  name: example
+  name: l2advertisement
   namespace: metallb-system" | kubectl apply -f -
 
 echo "[K8S_POSTINSTALL] Done"

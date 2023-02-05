@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-statefulset
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: simple-statefulset
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: simple-statefulset
+spec:
+  selector:
+    matchLabels:
+      app: simple-statefulset
+  serviceName: simple-statefulset
+  replicas: 3 
+  template:
+    metadata:
+      labels:
+        app: simple-statefulset
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: alpine
+        image: alpine:3.17
+        command: ["/bin/sh"]
+        args: ["-c", "sleep 3600"]
+

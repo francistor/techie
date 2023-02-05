@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test_simple_deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: simple_deployment
+  template:
+    metadata:
+      labels:
+        app: simple_deployment
+    spec:
+      containers:
+      - name: alpine
+        image: alpine:3.17
+        command: ["/bin/sh"]
+        args: ["-c", "sleep 3600"]
+
+
