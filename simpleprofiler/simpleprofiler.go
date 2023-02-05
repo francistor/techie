@@ -40,7 +40,7 @@ func main() {
 	securePtr := flag.Bool("https", false, "whether to use https")
 	serverHostPtr := flag.String("serverhost", "localhost", "name or ip address of the profiler server")
 	serverPortPtr := flag.Int("serverport", 8080, "port where the profiler server listens for http(s) requests")
-	sqlUrl := flag.String("sqlurl", "", "mysql url for root user. Example ")
+	// -----> Start here sqlUrl := flag.String("sqlurl", "", "mysql url for root user. Example ")
 	isServerPtr := flag.Bool("server", false, "whether to run as server")
 	isClientPtr := flag.Bool("client", false, "whether to run as client")
 	doSyncPtr := flag.Bool("sync", false, "whether to flush file to disk")
