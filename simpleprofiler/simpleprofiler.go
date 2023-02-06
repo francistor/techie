@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
+	"database/sql"
 	"flag"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/net/http2"
 )
 
@@ -19,6 +21,8 @@ import (
 // TODO: Generate certificates
 // TODO: Add -sqlclient
 // TODO: document that filename may point to a volume
+
+// Start database with docker run --name mysql -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -d mysql:8.0.32
 
 /*
 Executes performance tests of various types, typically in a Kubernetes cluster
@@ -40,7 +44,8 @@ func main() {
 	securePtr := flag.Bool("https", false, "whether to use https")
 	serverHostPtr := flag.String("serverhost", "localhost", "name or ip address of the profiler server")
 	serverPortPtr := flag.Int("serverport", 8080, "port where the profiler server listens for http(s) requests")
-	// -----> Start here sqlUrl := flag.String("sqlurl", "", "mysql url for root user. Example ")
+	sqlCredentialsPtr := flag.String("sqlcredentials", "", "mysql url for root user:password")
+	sqlHostPortPtr := flag.String("sqlhostport", "", "mysql url for root user:password")
 	isServerPtr := flag.Bool("server", false, "whether to run as server")
 	isClientPtr := flag.Bool("client", false, "whether to run as client")
 	doSyncPtr := flag.Bool("sync", false, "whether to flush file to disk")
@@ -54,6 +59,8 @@ func main() {
 	isServer := *isServerPtr
 	isClient := *isClientPtr
 	doSync = *doSyncPtr
+	sqlCredentials := *sqlCredentialsPtr
+	sqlHostPort := *sqlHostPortPtr
 
 	var schema string = "http"
 	if secure {
@@ -118,6 +125,12 @@ func main() {
 	}
 
 	if isClient {
+
+		// Do sql test if so specified
+		if sqlCredentials != "" {
+			testSql(sqlCredentials, sqlHostPort)
+			// It never finishes
+		}
 
 		// Create http client
 		var httpClient http.Client
@@ -357,4 +370,101 @@ func closeHandler(w http.ResponseWriter, req *http.Request) {
 // Health check
 func pingHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+// ///////////////////////////////////////////////////////////
+type T struct {
+	Id  int
+	Val int
+}
+
+// This function never ends. It executes an infinite loop of insertions, selections and deletions of the
+// same data.
+func testSql(sqlCredentials string, sqlHostPort string) {
+
+	dbHandle, err := sql.Open("mysql", fmt.Sprintf("%s@tcp(%s)/mysql?parseTime=true&multiStatements=true", sqlCredentials, sqlHostPort))
+
+	if err != nil {
+		fmt.Printf("[ERROR] could not open database due to %s\n", err)
+		os.Exit(1)
+	}
+	dbHandle.SetMaxOpenConns(1)
+	dbHandle.SetMaxIdleConns(1)
+
+	err = dbHandle.Ping()
+	if err != nil {
+		fmt.Printf("[ERROR] could not ping database: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Create test table
+	_, err = dbHandle.Exec("CREATE TABLE IF NOT EXISTS test (Id INT AUTO_INCREMENT PRIMARY KEY, Val VARCHAR(32) NOT NULL);")
+	if err != nil {
+		fmt.Printf("[ERROR] could not create table: %s\n", err)
+		os.Exit(1)
+	}
+
+	dbHandle.Exec("delete from test")
+
+	for {
+		// Insert 1000 rows
+		insertError := false
+		for i := 0; i < 1000; i++ {
+			_, err = dbHandle.Exec("insert into test (Val) values (?)", i)
+			if err != nil {
+				fmt.Printf("[ERROR] error inserting data: %s\n", err)
+				insertError = true
+				break
+			}
+		}
+
+		if !insertError {
+			fmt.Print("+")
+		} else {
+			time.Sleep(1 * time.Second)
+		}
+
+		// Select 1000 rows
+		selectError := false
+		for i := 0; i < 1000; i++ {
+			rows, err := dbHandle.Query("select Id, Val from test where Id = ?", i)
+			if err != nil {
+				fmt.Printf("[ERROR] error inserting data: %s\n", err)
+				selectError = true
+				break
+			} else {
+				for rows.Next() {
+					var t T
+					rows.Scan(t.Id, t.Val)
+				}
+				rows.Close()
+			}
+		}
+
+		if !selectError {
+			fmt.Print("O")
+		} else {
+			time.Sleep(1 * time.Second)
+		}
+
+		// Delete 1000 rows
+		deleteError := false
+		for i := 0; i < 1000; i++ {
+			_, err = dbHandle.Exec("delete from test where Id = ?", i)
+			if err != nil {
+				fmt.Printf("[ERROR] error deleting data: %s\n", err)
+				deleteError = true
+				break
+			}
+		}
+
+		if !deleteError {
+			fmt.Print("-")
+		} else {
+			time.Sleep(1 * time.Second)
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
 }
