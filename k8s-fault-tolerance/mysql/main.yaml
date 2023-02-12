@@ -1,0 +1,94 @@
+# Secret for MYSQL_ROOT_PASSWORD
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql
+stringData:
+  root-password: secret
+---
+
+# Configuration for main
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config-main
+data:
+  my.cnf: |
+    [mysqld]
+    skip-host-cache
+    skip-name-resolve
+    datadir=/var/lib/mysql
+    socket=/var/run/mysqld/mysqld.sock
+    secure-file-priv=/var/lib/mysql-files
+    user=mysql
+
+    pid-file=/var/run/mysqld/mysqld.pid
+
+    # Added for GTID replication
+    # MASTER
+    server-id = 1
+    log-bin = mysql-bin
+    binlog_format = row
+    gtid-mode=ON
+    enforce-gtid-consistency=ON
+    #log-slave-updates (this is by default)
+
+    [client]
+    socket=/var/run/mysqld/mysqld.sock
+
+---
+
+# Statefulset service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-main
+spec:
+  ports:
+  - port: 3306
+    name: mysql
+  clusterIP: None
+  selector:
+    app: mysql-main
+---
+
+# Statefulset
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-main
+spec:
+  selector:
+    matchLabels:
+      app: mysql-main
+  serviceName: mysql-main
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql-main
+    spec:  
+      volumes:
+      - name: config-volume
+        configMap:
+          name: mysql-config-main
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: mysql-main
+      containers:
+      - name: mysql
+        image: mysql:8.0.32
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/mysql/conf.d
+        - name: data-volume
+          mountPath: /var/lib/mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql
+              key: root-password
+              
+
+

@@ -1,0 +1,56 @@
+# Get the host ip
+HOST_IP=192.168.0.19
+
+MYSQL_ROOT_PASSWORD=root
+
+# Start source
+docker run --name mysql-main -p  13306:3306 -v /home/francisco/mysql/conf-main.d:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD -d mysql:8.0.32
+
+# Start replica
+docker run --name mysql-replica1 -p  23306:3306 -v /home/francisco/mysql/conf-replica1.d:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD -d mysql:8.0.32
+
+# Create replication user
+cat << EOF | mysql -h 127.0.0.1 -P 13306 -u root -proot
+  CREATE USER 'replication_user'@'%' IDENTIFIED WITH mysql_native_password BY 'secret';
+  GRANT REPLICATION SLAVE ON *.* TO 'replication_user'@'%';
+  FLUSH PRIVILEGES;
+EOF
+
+# Create some test data
+cat << EOF | mysql -h 127.0.0.1 -P 13306 -u root -proot
+  CREATE DATABASE IF NOT EXISTS test;
+  USE test;
+  CREATE TABLE IF NOT EXISTS test (Id INT AUTO_INCREMENT PRIMARY KEY, Val VARCHAR(32) NOT NULL);
+  INSERT INTO test (Val) values (1);
+  INSERT INTO test (Val) values (2);
+EOF
+
+# Dump database
+mysqldump --all-databases -flush-privileges --single-transaction --flush-logs --triggers --routines --events -hex-blob --host=127.0.0.1 --port=13306 --user=root --password=root> backup.sql
+
+# Import database
+mysql -h 127.0.0.1 -P 23306 -u root -proot < backup.sql
+
+# Configure replica
+cat << EOF | mysql -h 127.0.0.1 -P 23306 -u root -proot
+  CHANGE REPLICATION SOURCE TO
+  SOURCE_USER='replication_user',
+  SOURCE_PASSWORD='secret',
+  SOURCE_HOST='192.168.0.19',
+  SOURCE_PORT=13306,
+  SOURCE_AUTO_POSITION=1;
+  
+  START REPLICA;
+EOF
+
+# Add some test data
+cat << EOF | mysql -h 127.0.0.1 -P 13306 -u root -proot
+  USE test;
+  INSERT INTO test (Val) values (3);
+  INSERT INTO test (Val) values (4);
+EOF
+
+# Check replica status
+echo "show replica status\G" | mysql -h 127.0.0.1 -P 23306 -u root -proot|awk '/Last_Errno/ {print $2}'
+
+

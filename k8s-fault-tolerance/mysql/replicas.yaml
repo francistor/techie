@@ -1,0 +1,169 @@
+# Configuration for replicas
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config-replica
+data:
+  my.cnf: |
+    [mysqld]
+
+    skip-host-cache
+    skip-name-resolve
+    datadir=/var/lib/mysql
+    socket=/var/run/mysqld/mysqld.sock
+    secure-file-priv=/var/lib/mysql-files
+    user=mysql
+
+    pid-file=/var/run/mysqld/mysqld.pid
+
+    # Added for GTID replication
+    # REPLICA-1
+    # This will be set dynamically server-id = 11 
+    log-bin = mysql-bin
+    relay-log = relay-log-server
+    gtid-mode=ON
+    enforce-gtid-consistency=ON
+    log-replica-updates=ON
+    #read-only = ON
+
+    [client]
+    socket=/var/run/mysqld/mysqld.sock
+
+---
+
+# Statefulset service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-replica
+spec:
+  ports:
+  - port: 3306
+    name: mysql
+  clusterIP: None
+  selector:
+    app: mysql-replica
+---
+
+# Statefulset
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-replica
+spec:
+  selector:
+    matchLabels:
+      app: mysql-replica
+  serviceName: mysql-replica
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql-replica
+    spec:  
+      volumes:
+      # Contains the mysql configuration
+      - name: mysql-config
+        emptyDir: {}
+      # Contains the files to be copied to the configuration dir
+      - name: mysql-config-common
+        configMap:
+          name: mysql-config-replica
+      initContainers:
+      - name: init-mysql
+        image: mysql:8.0.32
+        command:
+        - bash
+        - "-c"
+        - |
+          set -ex
+          # Generate mysql server-id from pod ordinal index in stateful set
+          [[ $HOSTNAME =~ -([0-9]+)$ ]] || exit 1
+          ordinal=${BASH_REMATCH[1]}
+          echo [mysqld] > /etc/mysql/conf.d/server-id.cnf
+          # Set server-id
+          echo "server-id=$((11 + $ordinal))" >> /etc/mysql/conf.d/server-id.cnf
+          # Copy appropriate conf.d files from config-map to configuration directory
+          cp /tmp/mysqlconfig/my.cnf /etc/mysql/conf.d/my.cnf
+
+        volumeMounts:
+        - name: mysql-config-common
+          mountPath: /tmp/mysqlconfig 
+        - name: mysql-config
+          mountPath: /etc/mysql/conf.d      
+      containers:
+      - name: mysql
+        image: mysql:8.0.32
+        volumeMounts:
+        - name: mysql-config
+          mountPath: /etc/mysql/conf.d
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql
+              key: root-password
+
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - bash
+              - "-c"
+              - |
+                #!/bin/bash
+
+                export MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+                export MYSQL_REPLICATION_PASSWORD=secret
+                export MYSQL_MAIN_HOST=mysql-main
+                export MYSQL_THIS_HOST=127.0.0.1
+
+                echo "started" > /tmp/trace.txt
+
+                export MYSQL_PWD=$MYSQL_ROOT_PASSWORD
+
+                # Exit on error
+                set -e
+
+                # Wait until local database is up
+                until echo "select 1" | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h 127.0.0.1 -u root
+                do
+                  echo waiting for mysql up
+                  echo "waiting for mysql up" >> /tmp/trace.txt
+                  sleep 1
+                done
+
+                # Create replication user in the MAIN
+                echo "
+                  CREATE USER IF NOT EXISTS 'replication_user'@'%' IDENTIFIED WITH mysql_native_password BY '$MYSQL_REPLICATION_PASSWORD';
+                  GRANT REPLICATION SLAVE ON *.* TO 'replication_user'@'%';
+                  FLUSH PRIVILEGES;
+                " | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_MAIN_HOST -u root 
+                
+                echo "replication user created" >> /tmp/trace.txt
+
+                # Backup from master and restore here. Piping does not work
+                MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysqldump --all-databases -flush-privileges --single-transaction --flush-logs --triggers --routines --events -hex-blob --host=$MYSQL_MAIN_HOST --user=root | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_THIS_HOST  -u root 
+
+                echo "backup performed" >> /tmp/trace.txt
+
+                # # Configure replica
+                echo "
+                CHANGE REPLICATION SOURCE TO
+                  SOURCE_USER='replication_user',
+                  SOURCE_PASSWORD=\"$MYSQL_REPLICATION_PASSWORD\",
+                  SOURCE_HOST=\"$MYSQL_MAIN_HOST\",
+                  SOURCE_AUTO_POSITION=1;
+                  
+                  START REPLICA;
+                "| MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_THIS_HOST -u root 
+                  
+
+                echo "replica configured" >> /tmp/trace.txt
+
+                sleep 1
+
+                # Check that all the _Errno lines report 0
+                echo 'show replica status\G' | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_THIS_HOST -u root | awk '/_Errno/ {if ($2 != "0") exit 1}'
+                exit $?
+        
