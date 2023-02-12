@@ -36,6 +36,7 @@ var doSync bool
 var sliceSize int = 1024 * 1024
 var numSlices int = 1000
 var fileSize = sliceSize * numSlices
+var loopSize = 100
 
 func main() {
 
@@ -46,6 +47,7 @@ func main() {
 	serverPortPtr := flag.Int("serverport", 8080, "port where the profiler server listens for http(s) requests")
 	sqlCredentialsPtr := flag.String("sqlcredentials", "", "mysql url for root user:password")
 	sqlHostPortPtr := flag.String("sqlhostport", "", "mysql url for root user:password")
+	sqlQueryPtr := flag.String("sqlquery", "", "query to execute in a query only test. Only select will be executed")
 	isServerPtr := flag.Bool("server", false, "whether to run as server")
 	isClientPtr := flag.Bool("client", false, "whether to run as client")
 	doSyncPtr := flag.Bool("sync", false, "whether to flush file to disk")
@@ -61,6 +63,7 @@ func main() {
 	doSync = *doSyncPtr
 	sqlCredentials := *sqlCredentialsPtr
 	sqlHostPort := *sqlHostPortPtr
+	sqlQuery := *sqlQueryPtr
 
 	var schema string = "http"
 	if secure {
@@ -128,7 +131,7 @@ func main() {
 
 		// Do sql test if so specified
 		if sqlCredentials != "" {
-			testSql(sqlCredentials, sqlHostPort)
+			testSql(sqlCredentials, sqlHostPort, sqlQuery)
 			// It never finishes
 		}
 
@@ -380,7 +383,7 @@ type T struct {
 
 // This function never ends. It executes an infinite loop of insertions, selections and deletions of the
 // same data.
-func testSql(sqlCredentials string, sqlHostPort string) {
+func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 
 	dbHandle, err := sql.Open("mysql", fmt.Sprintf("%s@tcp(%s)/mysql?parseTime=true&multiStatements=true", sqlCredentials, sqlHostPort))
 
@@ -396,6 +399,19 @@ func testSql(sqlCredentials string, sqlHostPort string) {
 		fmt.Printf("[ERROR] could not ping database: %s\n", err)
 		os.Exit(1)
 	}
+	fmt.Println("[INFO] Database ping OK")
+
+	// Execute select only of query is specified
+	if sqlQuery != "" {
+		for {
+			_, err = dbHandle.Exec(sqlQuery)
+			if err != nil {
+				fmt.Printf("[ERROR] could not execute query %s\n", err)
+			}
+			fmt.Print("O")
+			time.Sleep(1 * time.Second)
+		}
+	}
 
 	// Create test table
 	_, err = dbHandle.Exec("CREATE TABLE IF NOT EXISTS test (Id INT AUTO_INCREMENT PRIMARY KEY, Val VARCHAR(32) NOT NULL);")
@@ -403,19 +419,21 @@ func testSql(sqlCredentials string, sqlHostPort string) {
 		fmt.Printf("[ERROR] could not create table: %s\n", err)
 		os.Exit(1)
 	}
+	fmt.Println("[INFO] Database test created")
 
 	dbHandle.Exec("delete from test")
 
 	for {
-		// Insert 1000 rows
+		// Insert rows
 		insertError := false
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < loopSize; i++ {
 			_, err = dbHandle.Exec("insert into test (Val) values (?)", i)
 			if err != nil {
 				fmt.Printf("[ERROR] error inserting data: %s\n", err)
 				insertError = true
 				break
 			}
+			fmt.Print(".")
 		}
 
 		if !insertError {
@@ -424,9 +442,9 @@ func testSql(sqlCredentials string, sqlHostPort string) {
 			time.Sleep(1 * time.Second)
 		}
 
-		// Select 1000 rows
+		// Select rows
 		selectError := false
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < loopSize; i++ {
 			rows, err := dbHandle.Query("select Id, Val from test where Id = ?", i)
 			if err != nil {
 				fmt.Printf("[ERROR] error inserting data: %s\n", err)
@@ -447,9 +465,9 @@ func testSql(sqlCredentials string, sqlHostPort string) {
 			time.Sleep(1 * time.Second)
 		}
 
-		// Delete 1000 rows
+		// Delete rows
 		deleteError := false
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < loopSize; i++ {
 			_, err = dbHandle.Exec("delete from test where Id = ?", i)
 			if err != nil {
 				fmt.Printf("[ERROR] error deleting data: %s\n", err)

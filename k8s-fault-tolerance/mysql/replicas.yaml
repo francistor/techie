@@ -87,10 +87,10 @@ spec:
           cp /tmp/mysqlconfig/my.cnf /etc/mysql/conf.d/my.cnf
 
         volumeMounts:
-        - name: mysql-config-common
-          mountPath: /tmp/mysqlconfig 
         - name: mysql-config
-          mountPath: /etc/mysql/conf.d      
+          mountPath: /etc/mysql/conf.d    
+        - name: mysql-config-common
+          mountPath: /tmp/mysqlconfig   
       containers:
       - name: mysql
         image: mysql:8.0.32
@@ -115,7 +115,7 @@ spec:
 
                 export MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
                 export MYSQL_REPLICATION_PASSWORD=secret
-                export MYSQL_MAIN_HOST=mysql-main
+                export MYSQL_MAIN_HOST=mysql-main-0.mysql-main
                 export MYSQL_THIS_HOST=127.0.0.1
 
                 echo "started" > /tmp/trace.txt

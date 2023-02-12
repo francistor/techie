@@ -26,7 +26,7 @@ data:
 
     # Added for GTID replication
     # MASTER
-    server-id = 1
+    # server-id = 1 Set dynamically
     log-bin = mysql-bin
     binlog_format = row
     gtid-mode=ON
@@ -62,26 +62,57 @@ spec:
     matchLabels:
       app: mysql-main
   serviceName: mysql-main
-  replicas: 1
+  replicas: 2
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
   template:
     metadata:
       labels:
         app: mysql-main
-    spec:  
+    spec:   
       volumes:
-      - name: config-volume
+      # Contains the mysql configuration
+      - name: mysql-config
+        emptyDir: {}
+      # Contains the files to be copied to the configuration dir
+      - name: mysql-config-common
         configMap:
           name: mysql-config-main
-      - name: data-volume
-        persistentVolumeClaim:
-          claimName: mysql-main
+      initContainers:
+      - name: init-mysql
+        image: mysql:8.0.32
+        command:
+        - bash
+        - "-c"
+        - |
+          set -ex
+          # Generate mysql server-id from pod ordinal index in stateful set
+          [[ $HOSTNAME =~ -([0-9]+)$ ]] || exit 1
+          ordinal=${BASH_REMATCH[1]}
+          echo [mysqld] > /etc/mysql/conf.d/server-id.cnf
+          # Set server-id
+          echo "server-id=$((1 + $ordinal))" >> /etc/mysql/conf.d/server-id.cnf
+          # Copy appropriate conf.d files from config-map to configuration directory
+          cp /tmp/mysqlconfig/my.cnf /etc/mysql/conf.d/my.cnf
+
+        volumeMounts:
+        - name: mysql-config
+          mountPath: /etc/mysql/conf.d    
+        - name: mysql-config-common
+          mountPath: /tmp/mysqlconfig 
       containers:
       - name: mysql
         image: mysql:8.0.32
         volumeMounts:
-        - name: config-volume
+        - name: mysql-config
           mountPath: /etc/mysql/conf.d
-        - name: data-volume
+        - name: data
           mountPath: /var/lib/mysql
         env:
         - name: MYSQL_ROOT_PASSWORD
@@ -89,6 +120,8 @@ spec:
             secretKeyRef:
               name: mysql
               key: root-password
-              
+
+        
+        
 
 
