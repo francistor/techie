@@ -1,15 +1,17 @@
 apiVersion: v1
 kind: Pod
 metadata:
+  namespace: profiler
   name: simpleprofiler-server
   labels:
+    app: profiler
     profiler: server
 spec:
   restartPolicy: Never
   containers:
   - name: profiler
-    image: francistor/simpleprofiler:0.1
-    command: ["/simpleprofiler/bin/simpleprofiler"]
+    imagePullPolicy: Always
+    image: francistor/simpleprofiler:0.2
     args: ["-server", "-serverport", "8080", "-sync"]
     ports:
         - containerPort: 80

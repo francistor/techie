@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: profiler
+  name: simpleprofiler-client
+  labels:
+    app: profiler
+    profiler: client
+spec:
+  restartPolicy: Never
+  securityContext:
+    fsGroup: 2000
+  volumes:
+    - name: pvc-volume
+      persistentVolumeClaim:
+        claimName: profiler-client
+  containers:
+  - name: profiler
+    imagePullPolicy: Always
+    image: francistor/simpleprofiler:0.2
+    args: ["-client", "-serverhost", "profiler", "-serverport", "8080", "-sync"]
+    volumeMounts:
+    - mountPath: "/tmp/simpleprofiler"
+      name: pvc-volume

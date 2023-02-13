@@ -1,14 +1,29 @@
-FROM ubuntu
-# To avoid user interaction
-ENV TZ=UTC
-ENV DEBIAN_FRONTEND=noninteractive
+# syntax=docker/dockerfile:1
 
-RUN apt-get update && apt-get install -y curl
+FROM golang:1.18-alpine AS build
 
-# Install go
-RUN curl -L -o go.tar.gz https://go.dev/dl/go1.17.1.linux-amd64.tar.gz && tar -C /usr/local -xzf go.tar.gz && echo "export PATH=$PATH:/usr/local/go/bin" >> /etc/environment
+WORKDIR /simpleprofiler
 
-# Copy contents
-RUN mkdir -p /simpleprofiler/bin
-COPY *.go go.mod go.sum *.pem /simpleprofiler/bin/
-RUN cd /simpleprofiler/bin && /usr/local/go/bin/go build
+# Copy dependencies...
+COPY go.mod ./
+COPY go.sum ./
+RUN go mod download
+
+COPY cert.pem ./
+COPY key.pem ./
+
+# ... and our code
+COPY *.go ./
+# Avoid linking externally to libc which will give a file not found error when executing
+RUN CGO_ENABLED=0 go build -o simpleprofiler
+
+## Deploy
+FROM gcr.io/distroless/base-debian11
+WORKDIR /
+
+COPY --from=build /simpleprofiler/simpleprofiler /simpleprofiler/simpleprofiler 
+COPY --from=build /simpleprofiler/*.pem /simpleprofiler/
+
+USER nonroot:nonroot
+
+ENTRYPOINT ["/simpleprofiler/simpleprofiler"]

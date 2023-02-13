@@ -1,7 +1,8 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
- name: profiler
+ namespace: profiler
+ name: profiler-server
 spec:
  accessModes:
  - ReadWriteOnce

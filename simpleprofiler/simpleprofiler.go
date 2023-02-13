@@ -158,7 +158,7 @@ func main() {
 			fmt.Printf("[ERROR] could not write file %s.client due to %s\n", fileName, err)
 			os.Exit(1)
 		} else {
-			fmt.Printf("[RESULT] write local file. Speed: %f MBytes/sec\n", speed)
+			fmt.Printf("[RESULT] write local file. Speed: %f MByte/sec\n", speed)
 		}
 
 		// Send contents to the server, where it will not be written to file but discarded
