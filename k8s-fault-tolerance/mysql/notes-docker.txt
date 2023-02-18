@@ -1,7 +1,7 @@
 # Get the host ip
 HOST_IP=192.168.0.19
 
-MYSQL_ROOT_PASSWORD=root
+MYSQL_ROOT_PASSWORD=secret
 
 # Start source
 docker run --name mysql-main -p  13306:3306 -v /home/francisco/mysql/conf-main.d:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD -d mysql:8.0.32

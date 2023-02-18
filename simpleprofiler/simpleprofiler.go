@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -31,12 +32,13 @@ Executes performance tests of various types, typically in a Kubernetes cluster
 // The file to be written by the server
 var serverFile *os.File
 var doSync bool
+var debug bool
 
 // Configuration variables
 var sliceSize int = 1024 * 1024
 var numSlices int = 1000
 var fileSize = sliceSize * numSlices
-var loopSize = 100
+var sqlLoopSize = 100
 
 func main() {
 
@@ -51,6 +53,7 @@ func main() {
 	isServerPtr := flag.Bool("server", false, "whether to run as server")
 	isClientPtr := flag.Bool("client", false, "whether to run as client")
 	doSyncPtr := flag.Bool("sync", false, "whether to flush file to disk")
+	debugPtr := flag.Bool("debug", false, "whether to print debug log")
 
 	flag.Parse()
 
@@ -60,10 +63,17 @@ func main() {
 	serverPort := *serverPortPtr
 	isServer := *isServerPtr
 	isClient := *isClientPtr
-	doSync = *doSyncPtr
+
 	sqlCredentials := *sqlCredentialsPtr
 	sqlHostPort := *sqlHostPortPtr
 	sqlQuery := *sqlQueryPtr
+
+	debug = *debugPtr
+	doSync = *doSyncPtr
+
+	if debug {
+		fmt.Println("[DEBUG] debug is on")
+	}
 
 	var schema string = "http"
 	if secure {
@@ -120,7 +130,7 @@ func main() {
 			} else {
 				err = http.ListenAndServe(fmt.Sprintf(":%d", serverPort), nil)
 			}
-			if err != nil {
+			if !errors.Is(err, http.ErrServerClosed) {
 				fmt.Printf("[ERROR] server not started due to %s\n", err)
 				os.Exit(1)
 			}
@@ -391,8 +401,8 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 		fmt.Printf("[ERROR] could not open database due to %s\n", err)
 		os.Exit(1)
 	}
-	dbHandle.SetMaxOpenConns(1)
-	dbHandle.SetMaxIdleConns(1)
+	dbHandle.SetMaxOpenConns(20)
+	dbHandle.SetMaxIdleConns(20)
 
 	err = dbHandle.Ping()
 	if err != nil {
@@ -409,42 +419,85 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 				fmt.Printf("[ERROR] could not execute query %s\n", err)
 			}
 			fmt.Print("O")
-			time.Sleep(1 * time.Second)
+			time.Sleep(200 * time.Millisecond)
+
+			// Never ends
 		}
 	}
 
 	// Create test table
-	_, err = dbHandle.Exec("CREATE TABLE IF NOT EXISTS test (Id INT AUTO_INCREMENT PRIMARY KEY, Val VARCHAR(32) NOT NULL);")
+	_, err = dbHandle.Exec("DROP TABLE IF EXISTS test; CREATE TABLE test (Id INT PRIMARY KEY, Val VARCHAR(32) NOT NULL);")
 	if err != nil {
 		fmt.Printf("[ERROR] could not create table: %s\n", err)
 		os.Exit(1)
 	}
 	fmt.Println("[INFO] Database test created")
 
+	// Prepare test table
 	dbHandle.Exec("delete from test")
+
+	///////////////////////////////////////
+	/* Insertion performance */
+	/*
+		c := make(chan int)
+		var wg sync.WaitGroup
+		for i := 0; i < 20; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for v := range c {
+					_, err = dbHandle.Exec("insert into test (Id, Val) values (?, ?)", v, v)
+					if err != nil {
+						fmt.Printf("[ERROR] error inserting data: %s\n", err)
+						os.Exit(1)
+					}
+				}
+			}()
+		}
+		st := time.Now()
+		for i := range [100]int{} {
+			c <- i
+		}
+		close(c)
+		wg.Wait()
+		et := time.Now()
+		fmt.Printf("\n[DEBUG] Insert %.0f\n", float64(100)/et.Sub(st).Seconds())
+		os.Exit(0)
+	*/
+
+	///////////////////////////////////////
+
+	var startTime time.Time
+	var endTime time.Time
 
 	for {
 		// Insert rows
+		startTime = time.Now()
 		insertError := false
-		for i := 0; i < loopSize; i++ {
-			_, err = dbHandle.Exec("insert into test (Val) values (?)", i)
+		for i := 0; i < sqlLoopSize; i++ {
+			_, err = dbHandle.Exec("insert into test (Id, Val) values (?, ?)", i, i)
 			if err != nil {
 				fmt.Printf("[ERROR] error inserting data: %s\n", err)
 				insertError = true
 				break
 			}
-			fmt.Print(".")
 		}
 
 		if !insertError {
 			fmt.Print("+")
+			endTime := time.Now()
+			if debug {
+				fmt.Printf("\n[DEBUG] Insert %.0f\n", float64(sqlLoopSize)/endTime.Sub(startTime).Seconds())
+			}
 		} else {
+			fmt.Print("!")
 			time.Sleep(1 * time.Second)
 		}
 
 		// Select rows
+		startTime = time.Now()
 		selectError := false
-		for i := 0; i < loopSize; i++ {
+		for i := 0; i < sqlLoopSize; i++ {
 			rows, err := dbHandle.Query("select Id, Val from test where Id = ?", i)
 			if err != nil {
 				fmt.Printf("[ERROR] error inserting data: %s\n", err)
@@ -461,13 +514,19 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 
 		if !selectError {
 			fmt.Print("O")
+			endTime = time.Now()
+			if debug {
+				fmt.Printf("\n[DEBUG] Select %.0f\n", float64(sqlLoopSize)/endTime.Sub(startTime).Seconds())
+			}
 		} else {
+			fmt.Print("!")
 			time.Sleep(1 * time.Second)
 		}
 
 		// Delete rows
+		startTime = time.Now()
 		deleteError := false
-		for i := 0; i < loopSize; i++ {
+		for i := 0; i < sqlLoopSize; i++ {
 			_, err = dbHandle.Exec("delete from test where Id = ?", i)
 			if err != nil {
 				fmt.Printf("[ERROR] error deleting data: %s\n", err)
@@ -478,7 +537,12 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 
 		if !deleteError {
 			fmt.Print("-")
+			endTime = time.Now()
+			if debug {
+				fmt.Printf("\n[DEBUG] Delete %.0f\n", float64(sqlLoopSize)/endTime.Sub(startTime).Seconds())
+			}
 		} else {
+			fmt.Print("!")
 			time.Sleep(1 * time.Second)
 		}
 

@@ -1,5 +1,6 @@
 #!/bin/bash
- 
+
+<< rook
 # Install Rook
 # Pre-requirements
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.yaml
@@ -7,6 +8,8 @@ kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7
 git clone --single-branch --branch v1.10.10 https://github.com/rook/rook.git
 cd rook/deploy/examples
 kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+# Use host network for performance
+sed -i 's/#provider: host/provider: host/g' cluster.yaml
 kubectl create -f cluster.yaml
 # Create storageclass
 kubectl create -f csi/rbd/storageclass.yaml
@@ -18,6 +21,53 @@ do
 done
 # Make default storage class
 kubectl patch storageclass rook-ceph-block -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+rook
+
+
+# Install OpenEBS. Jiva and Local PV components
+# Uses the default Jiva configuration, in which local pod storage. For better performance, a storage pool should be created
+echo "[K8S_POSTINSTALL] Installing OpenEBS..."
+kubectl apply -f https://openebs.github.io/charts/openebs-operator.yaml
+
+# Install Jiva csi, policy and storage class
+# https://github.com/openebs/jiva-csi
+# Operator
+kubectl apply -f https://openebs.github.io/charts/jiva-operator.yaml
+
+# Policy
+echo "apiVersion: openebs.io/v1alpha1
+kind: JivaVolumePolicy
+metadata:
+  name: example-jivavolumepolicy
+  namespace: openebs
+spec:
+  replicaSC: openebs-hostpath
+  target:
+    # monitor: false
+    replicationFactor: 3
+    "| kubectl apply -f -
+
+# StorageClass
+echo "apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: openebs-jiva-csi-sc
+provisioner: jiva.csi.openebs.io
+parameters:
+  cas-type: jiva
+  policy: example-jivavolumepolicy
+"| kubectl apply -f -
+
+# Wait until storage class ready
+while [[ ! $(kubectl get sc openebs-jiva-csi-sc) ]]
+do
+ echo "[K8S_POSTINSTALL] Waiting for Jiva storage class to be available"
+ sleep 15
+done
+
+# Make default storage class. openebs-hostpath may be used  instead of openebs-jiva-default if one-node cluster
+kubectl patch storageclass openebs-jiva-csi-sc -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+echo "[K8S_POSTINSTALL] Done"
 
 # Install metallb
 START_LB_IP=192.168.122.210

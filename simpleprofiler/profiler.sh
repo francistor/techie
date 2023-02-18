@@ -30,7 +30,7 @@ kubectl apply -f pod-client-pvc.yaml
 
 # Show results
 sleep 1
-kubectl wait --for=condition=Ready -n profiler pod -l profiler=client
+kubectl wait --for=condition=Ready --timeout=300s -n profiler pod -l profiler=client 
 echo
 echo PV disk
 kubectl -n profiler logs -l profiler=client -f
