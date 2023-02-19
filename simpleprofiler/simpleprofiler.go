@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -19,8 +20,6 @@ import (
 )
 
 // TODO: General comments
-// TODO: Generate certificates
-// TODO: Add -sqlclient
 // TODO: document that filename may point to a volume
 
 // Start database with docker run --name mysql -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -d mysql:8.0.32
@@ -33,6 +32,7 @@ Executes performance tests of various types, typically in a Kubernetes cluster
 var serverFile *os.File
 var doSync bool
 var debug bool
+var insertThreads int = 0
 
 // Configuration variables
 var sliceSize int = 1024 * 1024
@@ -50,6 +50,7 @@ func main() {
 	sqlCredentialsPtr := flag.String("sqlcredentials", "", "mysql url for root user:password")
 	sqlHostPortPtr := flag.String("sqlhostport", "", "mysql url for root user:password")
 	sqlQueryPtr := flag.String("sqlquery", "", "query to execute in a query only test. Only select will be executed")
+	sqlInsertThreadsPtr := flag.Int("sqlinsertthreads", 0, "execute a sql insert test with multiple threads, and only this test. This parameter specifies the number of threads")
 	isServerPtr := flag.Bool("server", false, "whether to run as server")
 	isClientPtr := flag.Bool("client", false, "whether to run as client")
 	doSyncPtr := flag.Bool("sync", false, "whether to flush file to disk")
@@ -70,10 +71,14 @@ func main() {
 
 	debug = *debugPtr
 	doSync = *doSyncPtr
+	insertThreads = *sqlInsertThreadsPtr
 
 	if debug {
 		fmt.Println("[DEBUG] debug is on")
 	}
+
+	// Create the certificates
+	certFile, keyFile := EnsureCertificates()
 
 	var schema string = "http"
 	if secure {
@@ -126,7 +131,7 @@ func main() {
 		go func() {
 			var err error
 			if secure {
-				err = http.ListenAndServeTLS(fmt.Sprintf(":%d", serverPort), "cert.pem", "key.pem", nil)
+				err = http.ListenAndServeTLS(fmt.Sprintf(":%d", serverPort), certFile, keyFile, nil)
 			} else {
 				err = http.ListenAndServe(fmt.Sprintf(":%d", serverPort), nil)
 			}
@@ -401,8 +406,8 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 		fmt.Printf("[ERROR] could not open database due to %s\n", err)
 		os.Exit(1)
 	}
-	dbHandle.SetMaxOpenConns(20)
-	dbHandle.SetMaxIdleConns(20)
+	dbHandle.SetMaxOpenConns(1)
+	dbHandle.SetMaxIdleConns(1)
 
 	err = dbHandle.Ping()
 	if err != nil {
@@ -436,9 +441,12 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 	// Prepare test table
 	dbHandle.Exec("delete from test")
 
-	///////////////////////////////////////
-	/* Insertion performance */
-	/*
+	if insertThreads != 0 {
+		/* Insertion performance */
+
+		dbHandle.SetMaxOpenConns(insertThreads)
+		dbHandle.SetMaxIdleConns(insertThreads)
+
 		c := make(chan int)
 		var wg sync.WaitGroup
 		for i := 0; i < 20; i++ {
@@ -462,8 +470,12 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 		wg.Wait()
 		et := time.Now()
 		fmt.Printf("\n[DEBUG] Insert %.0f\n", float64(100)/et.Sub(st).Seconds())
+
+		// cleanup
+		dbHandle.Exec("delete from test")
+
 		os.Exit(0)
-	*/
+	}
 
 	///////////////////////////////////////
 

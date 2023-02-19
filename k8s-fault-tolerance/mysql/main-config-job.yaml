@@ -1,3 +1,6 @@
+# This job configures mysql-main-0 and mysql-main-1 for bi-directional replication
+# It assumes that the two servers are freshly installed
+
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -15,6 +18,11 @@ spec:
             secretKeyRef:
               name: mysql
               key: root-password
+        - name: MYSQL_REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql
+              key: replication-password
         command:
         - bash
         - "-c"
@@ -22,7 +30,7 @@ spec:
           #!/bin/bash
 
           export MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
-          export MYSQL_REPLICATION_PASSWORD=secret
+          export MYSQL_REPLICATION_PASSWORD=$MYSQL_REPLICATION_PASSWORD
           export MYSQL_MAIN_0=mysql-main-0.mysql-main
           export MYSQL_MAIN_1=mysql-main-1.mysql-main
           export MYSQL_PWD=$MYSQL_ROOT_PASSWORD

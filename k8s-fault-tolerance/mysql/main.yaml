@@ -5,6 +5,7 @@ metadata:
   name: mysql
 stringData:
   root-password: secret
+  replication-password: secret
 ---
 
 # Configuration for main

@@ -1,6 +1,9 @@
 #!/bin/bash
 
-<< rook
+# Approve any pending CSR
+for csr in $(kubectl get csr| awk '{print $1}'); do kubectl certificate approve $csr; done
+
+
 # Install Rook
 # Pre-requirements
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.yaml
@@ -20,9 +23,7 @@ do
  sleep 15
 done
 # Make default storage class
-kubectl patch storageclass rook-ceph-block -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-rook
-
+# kubectl patch storageclass rook-ceph-block -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
 # Install OpenEBS. Jiva and Local PV components
 # Uses the default Jiva configuration, in which local pod storage. For better performance, a storage pool should be created
@@ -66,8 +67,13 @@ do
 done
 
 # Make default storage class. openebs-hostpath may be used  instead of openebs-jiva-default if one-node cluster
-kubectl patch storageclass openebs-jiva-csi-sc -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+# kubectl patch storageclass openebs-jiva-csi-sc -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 echo "[K8S_POSTINSTALL] Done"
+
+# Install Longhorn
+kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.4.0/deploy/longhorn.yaml
+# Create storage class. "longhorn" will be the storage class by default
+kubectl create -f https://raw.githubusercontent.com/longhorn/longhorn/v1.4.0/examples/storageclass.yaml
 
 # Install metallb
 START_LB_IP=192.168.122.210

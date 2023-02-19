@@ -2,6 +2,27 @@
 
 # Debug with kubectl run -i --tty busybox --image=busybox --restart=Never -n profiler -- sh
 
+# Local test
+# ./simpleprofiler -client -server [-sync]
+
+# Test existing database
+# ./simpleprofiler -client -sqlcredentials root:secret -sqlhostport 192.168.122.2:30006 -debug
+
+# Ceph default storage class
+# kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"null"}}}'
+# kubectl patch storageclass openebs-jiva-csi-sc -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"null"}}}'
+# kubectl patch storageclass rook-ceph-block -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+# Jiva default storage class
+# kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"null"}}}'
+# kubectl patch storageclass rook-ceph-block -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"null"}}}'
+# kubectl patch storageclass openebs-jiva-csi-sc -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+# Longhorn default storage class
+# kubectl patch storageclass rook-ceph-block -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"null"}}}'
+# kubectl patch storageclass openebs-jiva-csi-sc -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"null"}}}'
+# kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
 pushd descriptors
 
 # Create namespace if it does not exits
