@@ -4,11 +4,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: config-main
+  name: main-config
 spec:
+  backoffLimit: 1
   template:
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
       containers:
       - name: config-main
         image: mysql:8.0.32
@@ -35,7 +36,7 @@ spec:
           export MYSQL_MAIN_1=mysql-main-1.mysql-main
           export MYSQL_PWD=$MYSQL_ROOT_PASSWORD
 
-          echo "started" > /tmp/trace.txt
+          echo "started at $(date)"
 
           # Exit on error
           set -e
@@ -43,15 +44,13 @@ spec:
           # Wait until databases are up
           until echo "select 1" | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_MAIN_0 -u root
           do
-            echo waiting for mysql 0 up
-            echo "waiting for mysql up" >> /tmp/trace.txt
+            echo "waiting for mysql 0 up"
             sleep 1
           done
 
           until echo "select 1" | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_MAIN_1 -u root
           do
-            echo waiting for mysql 1 up
-            echo "waiting for remote mysql up" >> /tmp/trace.txt
+            echo "waiting for mysql 1 up"
             sleep 1
           done
 
@@ -68,7 +67,7 @@ spec:
             FLUSH PRIVILEGES;
           " | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_MAIN_1 -u root 
           
-          echo "replication user created" >> /tmp/trace.txt
+          echo "replication user created"
 
           # Backup skipped
 
@@ -87,7 +86,7 @@ spec:
             START REPLICA FOR CHANNEL 'main';
           "| MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_MAIN_0 -u root 
             
-          echo "replica 0 configured" >> /tmp/trace.txt
+          echo "replica 0 configured"
 
           sleep 1
 
@@ -109,7 +108,7 @@ spec:
           "| MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_MAIN_1 -u root 
             
 
-          echo "replica 0 configured" >> /tmp/trace.txt
+          echo "replica 1 configured"
 
           sleep 1
 

@@ -126,7 +126,8 @@ spec:
                 export MYSQL_MAIN_HOST=mysql-main-0.mysql-main
                 export MYSQL_THIS_HOST=127.0.0.1
 
-                echo "started" > /tmp/trace.txt
+                echo "started at $(date)"
+                echo "started at $(date)" > /tmp/postStart.log
 
                 export MYSQL_PWD=$MYSQL_ROOT_PASSWORD
 
@@ -137,7 +138,7 @@ spec:
                 until echo "select 1" | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h 127.0.0.1 -u root
                 do
                   echo waiting for mysql up
-                  echo "waiting for mysql up" >> /tmp/trace.txt
+                  echo "waiting for mysql up"
                   sleep 1
                 done
 
@@ -148,14 +149,16 @@ spec:
                   FLUSH PRIVILEGES;
                 " | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_MAIN_HOST -u root 
                 
-                echo "replication user created" >> /tmp/trace.txt
+                echo "replication user created"
 
-                # Backup from master and restore here.
-                MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysqldump --all-databases -flush-privileges --single-transaction --flush-logs --triggers --routines --events -hex-blob --host=$MYSQL_MAIN_HOST --user=root | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_THIS_HOST  -u root 
+                # Backup from master and restore here. File in between to avoid the backup generation to wait for a possibly slow restore
+                # Autocommit disable for fast restore
+                MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysqldump --all-databases -flush-privileges --single-transaction --flush-logs --triggers --routines --events -hex-blob --host=$MYSQL_MAIN_HOST --user=root > backup.sql
+                cat backup.sql | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql --init-command="SET autocommit=0;" -h $MYSQL_THIS_HOST  -u root 
 
-                echo "backup performed" >> /tmp/trace.txt
+                echo "backup/restore performed at $(date)"
 
-                # # Configure replica
+                # Configure replica
                 echo "
                 CHANGE REPLICATION SOURCE TO
                   SOURCE_USER='replication_user',
@@ -167,7 +170,9 @@ spec:
                 "| MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_THIS_HOST -u root 
                   
 
-                echo "replica configured" >> /tmp/trace.txt
+                echo "replica configured"
+
+                echo "finished at $(date)" >> /tmp/postStart.log
 
                 sleep 1
 
