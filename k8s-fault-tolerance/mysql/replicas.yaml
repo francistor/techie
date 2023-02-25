@@ -201,3 +201,20 @@ spec:
                 echo "STATUS_OK" >> /tmp/postStart.log
                 exit 0
         
+---
+# Access to all replicas
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-replica-all
+spec:
+  type: NodePort
+  selector:
+    app: mysql-replica
+  ports:
+      # By default and for convenience, the targetPort is set to the same value as the port field.
+    - port: 3306
+      targetPort: 3306
+      # Optional field
+      # By default and for convenience, the Kubernetes control plane will allocate a port from a range (default: 30000-32767)
+      nodePort: 30010
