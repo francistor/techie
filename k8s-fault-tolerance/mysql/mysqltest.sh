@@ -2,6 +2,7 @@
 
 # Create mysql main instances (2)
 kubectl apply -n mysql -f main.yaml
+sleep 1
 kubectl wait --for=condition=Ready -n mysql pod mysql-main-0
 sleep 1
 kubectl wait --for=condition=Ready -n mysql pod mysql-main-1

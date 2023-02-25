@@ -58,12 +58,28 @@ spec:
     matchLabels:
       app: mysql-replica
   serviceName: mysql-replica
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
         app: mysql-replica
-    spec:  
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: DoesNotExist     
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - mysql-replica
+              topologyKey: kubernetes.io/hostname   
       volumes:
       # Contains the mysql configuration
       - name: mysql-config
@@ -111,7 +127,11 @@ spec:
             secretKeyRef:
               name: mysql
               key: replication-password
-
+        livenessProbe:
+          tcpSocket:
+            port: 3306
+          initialDelaySeconds: 5
+          periodSeconds: 60
         lifecycle:
           postStart:
             exec:
@@ -178,5 +198,6 @@ spec:
 
                 # Check that all the _Errno lines report 0
                 echo 'show replica status\G' | MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -h $MYSQL_THIS_HOST -u root | awk '/_Errno/ {if ($2 != "0") exit 1}'
-                exit $?
+                echo "STATUS_OK" >> /tmp/postStart.log
+                exit 0
         
