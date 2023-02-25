@@ -73,7 +73,9 @@ echo "[K8S_POSTINSTALL] Done"
 # Install Longhorn
 kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.4.0/deploy/longhorn.yaml
 # Create storage class. "longhorn" will be the storage class by default
-kubectl create -f https://raw.githubusercontent.com/longhorn/longhorn/v1.4.0/examples/storageclass.yaml
+curl -o longhornStorageClass.yaml -L https://raw.githubusercontent.com/longhorn/longhorn/v1.4.0/examples/storageclass.yaml
+sed -i 's/numberOfReplicas: \"2\"/numberOfReplicas: \"3\"/g' longhornStorageClass.yaml
+kubectl create -f longhornStorageClass.yaml
 
 # Install metallb
 START_LB_IP=192.168.122.210

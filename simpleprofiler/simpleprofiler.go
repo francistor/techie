@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"database/sql"
 	"errors"
@@ -35,10 +36,13 @@ var debug bool
 var insertThreads int = 0
 
 // Configuration variables
+// For file creation and data transfer
 var sliceSize int = 1024 * 1024
 var numSlices int = 1000
 var fileSize = sliceSize * numSlices
-var sqlLoopSize = 100
+
+// Number of inserts/selects/deletes per round
+var sqlLoopSize int
 
 func main() {
 
@@ -47,6 +51,7 @@ func main() {
 	securePtr := flag.Bool("https", false, "whether to use https")
 	serverHostPtr := flag.String("serverhost", "localhost", "name or ip address of the profiler server")
 	serverPortPtr := flag.Int("serverport", 8080, "port where the profiler server listens for http(s) requests")
+	sqlLoopSizePtr := flag.Int("sqlloopsize", 100, "number of inserts/selects/deletions per iteration")
 	sqlCredentialsPtr := flag.String("sqlcredentials", "", "mysql url for root user:password")
 	sqlHostPortPtr := flag.String("sqlhostport", "", "mysql url for root user:password")
 	sqlQueryPtr := flag.String("sqlquery", "", "query to execute in a query only test. Only select will be executed")
@@ -68,6 +73,7 @@ func main() {
 	sqlCredentials := *sqlCredentialsPtr
 	sqlHostPort := *sqlHostPortPtr
 	sqlQuery := *sqlQueryPtr
+	sqlLoopSize = *sqlLoopSizePtr
 
 	debug = *debugPtr
 	doSync = *doSyncPtr
@@ -483,11 +489,12 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 	var endTime time.Time
 
 	for {
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 		// Insert rows
 		startTime = time.Now()
 		insertError := false
 		for i := 0; i < sqlLoopSize; i++ {
-			_, err = dbHandle.Exec("insert into test (Id, Val) values (?, ?)", i, i)
+			_, err = dbHandle.ExecContext(ctx, "insert into test (Id, Val) values (?, ?)", i, i)
 			if err != nil {
 				fmt.Printf("[ERROR] error inserting data: %s\n", err)
 				insertError = true
@@ -510,7 +517,7 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 		startTime = time.Now()
 		selectError := false
 		for i := 0; i < sqlLoopSize; i++ {
-			rows, err := dbHandle.Query("select Id, Val from test where Id = ?", i)
+			rows, err := dbHandle.QueryContext(ctx, "select Id, Val from test where Id = ?", i)
 			if err != nil {
 				fmt.Printf("[ERROR] error inserting data: %s\n", err)
 				selectError = true
@@ -539,7 +546,7 @@ func testSql(sqlCredentials string, sqlHostPort string, sqlQuery string) {
 		startTime = time.Now()
 		deleteError := false
 		for i := 0; i < sqlLoopSize; i++ {
-			_, err = dbHandle.Exec("delete from test where Id = ?", i)
+			_, err = dbHandle.ExecContext(ctx, "delete from test where Id = ?", i)
 			if err != nil {
 				fmt.Printf("[ERROR] error deleting data: %s\n", err)
 				deleteError = true
