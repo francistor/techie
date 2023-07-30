@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-test-pod
+spec:
+  volumes:
+    - name: pvc-volume
+      persistentVolumeClaim:
+        claimName: mypvc
+  containers:
+    - name: pvc-test
+      image: alpine:3.17
+      command: ["/bin/sh"]
+      args: ["-c", "sleep 3600"]
+      volumeMounts:
+        - mountPath: "/tmp/pvc-volume"
+          name: pvc-volume

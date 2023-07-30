@@ -1,0 +1,28 @@
+# Kubernetes installation
+
+[all:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+gw_ip_address=192.168.122.1
+
+[manager]
+192.168.122.1
+
+[mainmaster]
+192.168.122.2 hostname=vm2
+
+[secondarymasters]
+192.168.122.3 hostname=vm3
+192.168.122.4 hostname=vm4
+
+[workers]
+192.168.122.5 hostname=vm5
+
+[masters:children]
+mainmaster
+secondarymasters
+
+[k8snodes:children]
+masters
+workers
+
+

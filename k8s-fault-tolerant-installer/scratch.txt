@@ -1,0 +1,12 @@
+- name: update /etc/hosts
+  hosts: k8snodes
+  gather_facts: yes
+  tasks:
+    - name: update /etc/hosts
+      lineinfile:
+        dest: /etc/hosts
+        regexp: '.*{{ item }}$'
+        line: "{{ hostvars[item].ansible_host }} {{item}}"
+        state: present
+        when: hostvars[item].ansible_host is defined
+      loop: "{{ groups.all }}"

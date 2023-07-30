@@ -1,0 +1,21 @@
+- name: Kubeadm init
+  gather_facts: no
+  hosts: mainmaster
+  become: yes
+  tasks:
+    - name: Copy kubeadm config file
+      ansible.builtin.copy:
+        src: kubeadm_init_config.yaml
+        dest: .
+    - name: Kubeadm init
+      ansible.builtin.script: 
+        cmd: "k8s_init_cluster.sh"
+      register: init_output
+    - set_fact:
+        join_endpoint_token: "{{ init_output.stdout | regex_search('kubeadm join .+ --token [0-9a-z\\.]+') }} "
+    - set_fact:
+        join_discovery_token: "{{ init_output.stdout | regex_search('--discovery-token-ca-cert-hash [0-9a-z\\:]+') }}"
+    - set_fact:
+        join_certificate_key: "{{ init_output.stdout | regex_search('--certificate-key [0-9a-z]+') }}"
+    - debug:
+        msg: "{{ join_endpoint_token }} -- {{ join_discovery_token }} -- {{ join_certificate_key }}"

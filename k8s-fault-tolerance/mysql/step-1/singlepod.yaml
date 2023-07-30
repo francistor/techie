@@ -1,0 +1,106 @@
+# Secret for MYSQL_ROOT_PASSWORD
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql
+stringData:
+  root-password: secret
+  replication-password: secret
+---
+# Configuration for single pod
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config-pod
+data:
+  my.cnf: |
+    [mysqld]
+
+    skip-host-cache
+    skip-name-resolve
+    datadir=/var/lib/mysql
+    socket=/var/run/mysqld/mysqld.sock
+    secure-file-priv=/var/lib/mysql-files
+    user=mysql
+
+    pid-file=/var/run/mysqld/mysqld.pid
+
+    # Added for GTID replication
+    server-id = 11 
+    log-bin = mysql-bin
+    relay-log = relay-log-server
+    gtid-mode=ON
+    enforce-gtid-consistency=ON
+    log-replica-updates=ON
+    #read-only = ON
+
+    [client]
+    socket=/var/run/mysqld/mysqld.sock
+---
+# Persistent Volume claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+ name: data-1
+spec:
+ accessModes:
+ - ReadWriteOnce
+ resources:
+   requests:
+     storage: 1Gi
+---
+
+# Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-pod-1
+  labels:
+    app: mysql-pod
+spec:
+  volumes:
+  - name: mysql-config
+    configMap:
+      name: mysql-config-pod
+  - name: pvc-volume
+    persistentVolumeClaim:
+      claimName: data-1
+  containers:
+  - name: mysql
+    image: mysql:8.0.32
+    volumeMounts:
+    - name: mysql-config
+      mountPath: /etc/mysql/conf.d    
+    - name: pvc-volume
+      mountPath: /var/lib/mysql
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: mysql
+          key: root-password
+    - name: MYSQL_REPLICATION_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: mysql
+          key: replication-password
+    livenessProbe:
+      tcpSocket:
+        port: 3306
+      initialDelaySeconds: 5
+      periodSeconds: 60
+  
+---
+# Access from the outside
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-pod-all
+spec:
+  type: NodePort
+  selector:
+    app: mysql-pod
+  ports:
+    - port: 3306
+      targetPort: 3306
+      nodePort: 30010

@@ -1,0 +1,120 @@
+# Creates virtual machines and installs a Kubernetes Cluster
+# Make sure tha manager machine (which is the localhost) can be accessed
+# Requires export PASSWORD=<password>
+
+- name: Create virtual machines. Master and Workers
+  gather_facts: no
+  hosts: manager
+  vars:
+    pubKey: "{{ lookup('env','HOME') }}/.ssh/id_rsa.pub"
+    image: "{{ lookup('env','HOME') }}/images/focal-server-cloudimg-amd64.img"
+    imageSize: 50G
+    memory: 4096
+    vcpu: 2
+  tasks:
+    - name: Create Controller Virtual Machines
+      ansible.builtin.script: 
+        cmd: "vm-install.sh --hostname {{ hostvars[item].hostname }} --ip-address {{ item }} --gw-address {{ gw_ip_address }} --base-image {{ image }} --size {{ imageSize }} --pubkey {{ pubKey }} --memory {{ memory }} --cpu {{ vcpu }} --password {{lookup('env', 'PASSWORD')}}"
+      loop: "{{ groups.k8snodes }}"
+      when: hostvars[item].hostname is defined
+
+- name: Wait for all created virtual machines up
+  hosts: k8snodes
+  gather_facts: no
+  tasks:
+    - name: Wait for ansible connection.
+      wait_for_connection:
+        timeout: 180
+        connect_timeout: 10
+        sleep: 5
+
+- name: update /etc/hosts
+  gather_facts: no
+  become: yes
+  hosts: k8snodes
+  tasks:
+    - name: update hosts file
+      lineinfile:
+        dest: /etc/hosts
+        regexp: '.*{{ item }}$'
+        line: "{{ item }} {{ hostvars[item].hostname }}"
+        state: present
+      loop: "{{ groups.k8snodes }}"
+      when: hostvars[item].hostname is defined
+
+- name: Pre-install k8s in all nodes
+  gather_facts: no
+  hosts: k8snodes
+  become: yes
+  tasks:
+    - name: K8S Node Preinstallation
+      ansible.builtin.script: 
+        cmd: k8s_preinstall_node.sh
+
+# The output we want is in two lines. The first one ends with an \ character
+- name: Kubeadm init
+  gather_facts: no
+  hosts: mainmaster
+  become: yes
+  tasks:
+    - name: Copy kubeadm config file
+      ansible.builtin.copy:
+        src: kubeadm_init_config.yaml
+        dest: .
+    - name: Kubeadm init
+      ansible.builtin.script: 
+        cmd: "k8s_init_cluster.sh"
+      register: init_output
+    - set_fact:
+        join_endpoint_token: "{{ init_output.stdout | regex_search('kubeadm join .+ --token [0-9a-z\\.]+') }} "
+    - set_fact:
+        join_discovery_token: "{{ init_output.stdout | regex_search('--discovery-token-ca-cert-hash [0-9a-z\\:]+') }}"
+    - set_fact:
+        join_certificate_key: "{{ init_output.stdout | regex_search('--certificate-key [0-9a-z]+') }}"
+    - debug:
+        msg: "{{ join_endpoint_token }} -- {{ join_discovery_token }} -- {{ join_certificate_key }}"
+
+
+# kubeadm join 192.168.122.2:6443 --token ut0h9y.2ykr0rivflscc86b \
+# --discovery-token-ca-cert-hash sha256:2705961e6f13468dd66503d78c1d94f99305ebe5a5343783ef88f99b90bbfa12 \
+# --control-plane --certificate-key 3d03789a6b15481a89c10ddec4322529fc10484eb5068722c5c416205863190f
+
+
+# Copy kubeconfig file to local
+- name: Kubeconfig
+  gather_facts: no
+  hosts: mainmaster
+  become: yes
+  tasks: 
+    - ansible.builtin.fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: kubeconfig-fetched
+        flat: yes
+
+# Post installation tasks
+- name: Configure networking
+  gather_facts: no
+  hosts: manager
+  tasks:
+    - name: Configure networking
+      ansible.builtin.script: 
+        cmd: "k8s_postinstall_network.sh kubeconfig-fetched"
+
+# Join control plane
+- name: Join control plane
+  gather_facts: no
+  hosts: secondarymasters
+  become: yes
+  tasks:
+    - debug:
+        name: debug1
+        msg: "{{ hostvars[groups['mainmaster'][0]]['join_endpoint_token'] }}"
+    - debug:
+        name: debug2
+        msg: "{{ hostvars }}"
+
+    - name: Join Cluster
+      ansible.builtin.command: "{{ hostvars[groups['mainmaster'][0]]['join_endpoint_token'] }} {{ hostvars[groups['mainmaster'][0]]['join_discovery_token'] }} --control-plane {{ hostvars[groups['mainmaster'][0]]['join_certificate_key'] }}"
+
+
+ 
