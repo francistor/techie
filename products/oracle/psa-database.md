@@ -24,7 +24,7 @@ sqlplus psa/psa@localhost/psa;
 SQLPLUS>@path-to-schema-script.sql
 ```
 
-Create another user with less privleges
+Create another user with less privileges
 
 ```
 sqlplus psa@localhost/psa;
