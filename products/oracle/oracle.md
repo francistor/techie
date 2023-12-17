@@ -66,6 +66,35 @@ sudo systemctl start|stop oracle-xe-21c
 
 ## Operation
 
+### Connecting using SQLPLUS
+
+The syntax to connect remotelly is
+```
+sqlplus <user>[/Password][@/<host-and-port>/<sid> [as sysdba]
+```
+For connecting locally the host-and-port may be ommited.
+
+Some examples
+
+```
+# Connect locally with sysdba privileges and operating system authentication
+sqlplus / as sysdba
+# or
+sqlplus system
+
+# Connect locally to PDB database
+sqlplus sys/XEPDB1 as sysdba
+
+# Conect remotelly
+sqlplus sys@localhost/XEPDB1 as sysdba
+
+# Connect remotelly with password
+sqlplus sys/<pass>@localhost/XEPDB1 as sysdba
+```
+The `<host-and-port>/SID` part can be replaced by a service name
+
+### The listener
+
 View the status of the listeners, as `oracle` user.
 ```bash
 lsnrctl status
