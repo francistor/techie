@@ -30,4 +30,21 @@ inner join dba_pdbs pdb
     and pdb.pdb_name = 'XEPDB1';
 ```
 
+## Operations on tablespaces
+Creation
 
+```
+create tablespace psa_tbs datafile '/opt/...' size 100M autoextend on;
+```
+
+Assign as default
+
+```
+alter user <user> set default tablespace <tablespace-name>;
+
+```
+```
+select * from user_tablespaces;
+select * from dba_tablespaces;
+select username,default_tablespace from dba_users where username = 'PSA';
+```
