@@ -20,8 +20,15 @@ Execute the preinstall package
 sudo dnf -y install oracle-database-preinstall-21c
 ```
 Download the XE database rpm in `https://www.oracle.com/database/technologies/xe-downloads.html`, and then configure the database.
+For Oracle Linux 8 the link is `https://download.oracle.com/otn-pub/otn_software/db-express/oracle-database-xe-21c-1.0-1.ol8.x86_64.rpm`
 ```bash
+# Download to local file
+curl -L --output oracle-database-xe-21c-1.0-1.ol8.x86_64.rpm https://download.oracle.com/otn-pub/otn_software/db-express/oracle-database-xe-21c-1.0-1.ol8.x86_64.rpm
+
+# Install
 sudo dnf -y localinstall oracle-database-xe-21c-1.0-1.ol8.x86_64.rpm
+
+# Configure
 sudo /etc/init.d/oracle-xe-21c configure
 ```
 
