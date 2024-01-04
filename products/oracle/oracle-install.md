@@ -5,6 +5,8 @@
 ### Operating system
 Use Oracle Linux 8.9 `https://yum.oracle.com/oracle-linux-isos.html`
 
+Execute `sudo yum update && sudo yum upgrade`.
+
 Set the spanish locale, if the keyboard is also in spanish. First, install additional locales, and then execute the command for setting the chosen locale
 
 ```
